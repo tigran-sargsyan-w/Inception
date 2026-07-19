@@ -5,7 +5,7 @@ RUN apt-get update \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& rm -rf /var/lib/mysql/*
 
-COPY conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
+COPY conf/99-inception.cnf /etc/mysql/mariadb.conf.d/99-inception.cnf
 COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
