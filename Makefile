@@ -1,7 +1,11 @@
 COMPOSE_FILE := srcs/docker-compose.yml
+DATA_DIR := /home/tsargsya/data
 
-all:
+all: prepare
 	docker compose -f $(COMPOSE_FILE) up -d --build
+
+prepare:
+	mkdir -p $(DATA_DIR)/mariadb
 
 down:
 	docker compose -f $(COMPOSE_FILE) down
@@ -16,4 +20,4 @@ fclean:
 
 re: fclean all
 
-.PHONY: all down clean fclean re
+.PHONY: all prepare down clean fclean re
