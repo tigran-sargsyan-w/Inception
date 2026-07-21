@@ -5,7 +5,7 @@ services:
     build:
       context: ./requirements/mariadb
       dockerfile: Dockerfile
-    image: mariadb
+    image: mariadb:inception
     container_name: mariadb
     restart: on-failure
     env_file:
