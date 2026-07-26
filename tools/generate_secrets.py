@@ -24,6 +24,8 @@ SECRETS_DIRECTORY = PROJECT_ROOT / "secrets"
 SECRET_FILES = {
     "MariaDB root": SECRETS_DIRECTORY / "db_root_password.txt",
     "MariaDB user": SECRETS_DIRECTORY / "db_password.txt",
+    "WordPress admin": SECRETS_DIRECTORY / "wp_admin_password.txt",
+    "WordPress user": SECRETS_DIRECTORY / "wp_user_password.txt",
 }
 
 
