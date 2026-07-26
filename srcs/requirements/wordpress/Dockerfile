@@ -18,6 +18,10 @@ RUN apt-get update \
 
 RUN mkdir -p /run/php /var/www/html
 
+COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
+
 WORKDIR /var/www/html
 
 EXPOSE 9000
+
+CMD ["php-fpm8.2", "-F"]
