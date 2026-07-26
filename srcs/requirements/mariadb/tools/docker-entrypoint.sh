@@ -55,19 +55,9 @@ sql_escape()
 		| sed -e 's/\\/\\\\/g' -e "s/'/''/g"
 }
 
-server_is_alive()
-{
-	mariadb-admin --no-defaults \
-		--protocol=socket \
-		--socket="$SOCKET" \
-		--user=root \
-		--silent \
-		ping >/dev/null 2>&1
-}
-
 try_root_connection()
 {
-	if mariadb --no-defaults \
+	if mariadb \
 		--protocol=socket \
 		--socket="$SOCKET" \
 		--user=root \
@@ -77,7 +67,7 @@ try_root_connection()
 		return 0
 	fi
 
-	if MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mariadb --no-defaults \
+	if MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mariadb \
 		--protocol=socket \
 		--socket="$SOCKET" \
 		--user=root \
@@ -94,7 +84,7 @@ wait_for_mariadb()
 {
 	attempt=0
 
-	until server_is_alive
+	until try_root_connection
 	do
 		if ! kill -0 "$temp_pid" 2>/dev/null; then
 			wait "$temp_pid" 2>/dev/null || true
@@ -110,26 +100,6 @@ wait_for_mariadb()
 
 		sleep 1
 	done
-
-	if ! try_root_connection; then
-		echo "Passwordless root connection failed:" >&2
-
-		mariadb --no-defaults \
-			--protocol=socket \
-			--socket="$SOCKET" \
-			--user=root \
-			--execute='SELECT 1' || true
-
-		echo "Password-based root connection failed:" >&2
-
-		MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mariadb --no-defaults \
-			--protocol=socket \
-			--socket="$SOCKET" \
-			--user=root \
-			--execute='SELECT 1' || true
-
-		fail "temporary MariaDB is alive, but root authentication failed"
-	fi
 }
 
 render_initialization_sql()
