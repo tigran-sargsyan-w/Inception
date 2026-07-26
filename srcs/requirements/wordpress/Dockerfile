@@ -1,5 +1,7 @@
 FROM debian:bookworm
 
+ARG WP_CLI_VERSION=2.12.0
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -15,6 +17,12 @@ RUN apt-get update \
         php-xml \
         php-zip \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL \
+        "https://github.com/wp-cli/wp-cli/releases/download/v${WP_CLI_VERSION}/wp-cli-${WP_CLI_VERSION}.phar" \
+        -o /usr/local/bin/wp \
+    && chmod +x /usr/local/bin/wp \
+    && wp --info
 
 RUN mkdir -p /run/php /var/www/html
 
