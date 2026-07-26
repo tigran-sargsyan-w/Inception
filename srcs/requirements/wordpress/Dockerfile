@@ -24,12 +24,21 @@ RUN curl -fsSL \
     && chmod +x /usr/local/bin/wp \
     && wp --info
 
-RUN mkdir -p /run/php /var/www/html
+RUN mkdir -p \
+        /run/php \
+        /var/www/html \
+        /var/www/.wp-cli/cache \
+    && chown -R www-data:www-data \
+        /var/www/html \
+        /var/www/.wp-cli
 
 COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY tools/wordpress.sh /usr/local/bin/wordpress.sh
+
+RUN chmod +x /usr/local/bin/wordpress.sh
 
 WORKDIR /var/www/html
 
 EXPOSE 9000
 
-CMD ["php-fpm8.2", "-F"]
+ENTRYPOINT ["/usr/local/bin/wordpress.sh"]
