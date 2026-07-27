@@ -106,11 +106,13 @@ render_initialization_sql()
 {
 	MYSQL_ROOT_PASSWORD_SQL="$(sql_escape "$MYSQL_ROOT_PASSWORD")"
 	MYSQL_PASSWORD_SQL="$(sql_escape "$MYSQL_PASSWORD")"
+	MARIADB_HOSTNAME_SQL="$(sql_escape "$(hostname)")"
 
 	export MYSQL_DATABASE
 	export MYSQL_USER
 	export MYSQL_ROOT_PASSWORD_SQL
 	export MYSQL_PASSWORD_SQL
+	export MARIADB_HOSTNAME_SQL
 
 	rendered_sql="$(mktemp /tmp/mariadb-init.XXXXXX.sql)"
 
@@ -118,12 +120,14 @@ render_initialization_sql()
 		'${MYSQL_DATABASE}
 		${MYSQL_USER}
 		${MYSQL_ROOT_PASSWORD_SQL}
-		${MYSQL_PASSWORD_SQL}' \
+		${MYSQL_PASSWORD_SQL}
+		${MARIADB_HOSTNAME_SQL}' \
 		< "$SQL_TEMPLATE" \
 		> "$rendered_sql"
 
 	unset MYSQL_ROOT_PASSWORD_SQL
 	unset MYSQL_PASSWORD_SQL
+	unset MARIADB_HOSTNAME_SQL
 }
 
 initialize_system_tables()
