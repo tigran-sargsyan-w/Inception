@@ -9,7 +9,7 @@ services:
     container_name: mariadb
     restart: on-failure
     env_file:
-      - .env
+      - ./environment/database.env
     secrets:
       - db_root_password
       - db_password
@@ -26,7 +26,9 @@ services:
     container_name: wordpress
     restart: on-failure
     env_file:
-      - .env
+      - ./.env
+      - ./environment/database.env
+      - ./environment/wordpress.env
     secrets:
       - db_password
       - wp_admin_password
