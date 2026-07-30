@@ -41,4 +41,4 @@ WORKDIR /var/www/html
 
 EXPOSE 9000
 
-ENTRYPOINT ["/usr/local/bin/wordpress.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
