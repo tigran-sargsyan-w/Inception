@@ -40,7 +40,7 @@ wait_for_mariadb()
 	until MYSQL_PWD="$MYSQL_PASSWORD" mariadb \
 		--protocol=tcp \
 		--host="$MYSQL_HOST" \
-		--port=3306 \
+		--port="$MARIADB_PORT" \
 		--user="$MYSQL_USER" \
 		--database="$MYSQL_DATABASE" \
 		--execute="SELECT 1" >/dev/null 2>&1
@@ -79,7 +79,7 @@ create_wordpress_config()
 			--dbname="$MYSQL_DATABASE" \
 			--dbuser="$MYSQL_USER" \
 			--dbpass="$MYSQL_PASSWORD" \
-			--dbhost="$MYSQL_HOST:3306"
+			--dbhost="$MYSQL_HOST:$MARIADB_PORT"
 
 		echo "wp-config.php created."
 	fi
@@ -137,6 +137,7 @@ require_variable DOMAIN_NAME
 require_variable MYSQL_HOST
 require_variable MYSQL_DATABASE
 require_variable MYSQL_USER
+require_variable MARIADB_PORT
 require_variable WP_TITLE
 require_variable WP_ADMIN_USER
 require_variable WP_ADMIN_EMAIL
