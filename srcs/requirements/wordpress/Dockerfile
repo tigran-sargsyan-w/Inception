@@ -33,9 +33,9 @@ RUN mkdir -p \
         /var/www/.wp-cli
 
 COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
-COPY tools/wordpress.sh /usr/local/bin/wordpress.sh
+COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/wordpress.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /var/www/html
 
