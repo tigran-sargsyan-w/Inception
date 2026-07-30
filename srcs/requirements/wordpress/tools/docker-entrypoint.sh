@@ -171,4 +171,4 @@ unset MYSQL_PASSWORD
 unset WP_ADMIN_PASSWORD
 unset WP_USER_PASSWORD
 
-exec php-fpm8.2 -F
+exec "$@"

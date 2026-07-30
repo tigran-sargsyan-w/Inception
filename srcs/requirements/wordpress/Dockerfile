@@ -42,3 +42,4 @@ WORKDIR /var/www/html
 EXPOSE 9000
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["php-fpm8.2", "-F"]
