@@ -2,6 +2,7 @@ FROM debian:bookworm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        gettext-base \
         nginx \
         openssl \
     && rm -rf /var/lib/apt/lists/* \
@@ -9,10 +10,14 @@ RUN apt-get update \
 
 RUN mkdir -p \
         /etc/nginx/ssl \
+        /etc/nginx/templates \
         /var/www/html
 
-COPY conf/default.conf /etc/nginx/conf.d/default.conf
-COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY conf/default.conf.template \
+    /etc/nginx/templates/default.conf.template
+
+COPY tools/docker-entrypoint.sh \
+    /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
