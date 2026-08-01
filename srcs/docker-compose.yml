@@ -40,6 +40,24 @@ services:
     networks:
       - inception
 
+  nginx:
+    build:
+      context: ./requirements/nginx
+      dockerfile: Dockerfile
+    image: nginx:inception
+    container_name: nginx
+    restart: on-failure
+    env_file:
+      - ./.env
+    depends_on:
+      - wordpress
+    ports:
+      - "443:443"
+    volumes:
+      - wordpress_data:/var/www/html:ro
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
     name: mariadb_data
