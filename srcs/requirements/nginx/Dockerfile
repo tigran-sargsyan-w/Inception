@@ -14,15 +14,7 @@ RUN mkdir -p \
 COPY conf/default.conf /etc/nginx/conf.d/default.conf
 COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
-    && printf '%s\n' \
-        '<!doctype html>' \
-        '<html>' \
-        '<body>' \
-        '<h1>NGINX HTTPS works</h1>' \
-        '</body>' \
-        '</html>' \
-        > /var/www/html/index.html
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 443
 
