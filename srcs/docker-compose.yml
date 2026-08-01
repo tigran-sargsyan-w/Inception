@@ -55,6 +55,16 @@ services:
       - "443:443"
     volumes:
       - wordpress_data:/var/www/html:ro
+
+      - type: bind
+        source: ../certificates/inception.crt
+        target: /etc/nginx/ssl/inception.crt
+        read_only: true
+
+      - type: bind
+        source: ../certificates/inception.key
+        target: /etc/nginx/ssl/inception.key
+        read_only: true
     networks:
       - inception
 
