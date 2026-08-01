@@ -5,6 +5,7 @@ DATA_DIR := /home/tsargsya/data
 MARIADB_DIR := $(DATA_DIR)/mariadb
 WORDPRESS_DIR := $(DATA_DIR)/wordpress
 
+DOMAIN_SCRIPT := ./tools/configure_domain.sh
 CERTIFICATE_SCRIPT := ./tools/generate_certificates.sh
 
 all: prepare
@@ -13,6 +14,7 @@ all: prepare
 prepare:
 	mkdir -p $(MARIADB_DIR)
 	mkdir -p $(WORDPRESS_DIR)
+	$(DOMAIN_SCRIPT)
 	$(CERTIFICATE_SCRIPT)
 
 down:
