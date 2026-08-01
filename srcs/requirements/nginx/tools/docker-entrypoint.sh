@@ -2,11 +2,23 @@
 
 set -eu
 
+TEMPLATE_FILE="/etc/nginx/templates/default.conf.template"
+CONFIG_FILE="/etc/nginx/conf.d/default.conf"
+
 CERTIFICATE_DIR="/etc/nginx/ssl"
 CERTIFICATE_FILE="$CERTIFICATE_DIR/inception.crt"
 PRIVATE_KEY_FILE="$CERTIFICATE_DIR/inception.key"
 
 : "${DOMAIN_NAME:?DOMAIN_NAME is not set}"
+
+[ -r "$TEMPLATE_FILE" ] || {
+	echo "NGINX template is not readable: $TEMPLATE_FILE" >&2
+	exit 1
+}
+
+envsubst '${DOMAIN_NAME}' \
+	< "$TEMPLATE_FILE" \
+	> "$CONFIG_FILE"
 
 mkdir -p "$CERTIFICATE_DIR"
 
@@ -28,5 +40,7 @@ if [ ! -f "$CERTIFICATE_FILE" ] || [ ! -f "$PRIVATE_KEY_FILE" ]; then
 
 	echo "TLS certificate generated."
 fi
+
+nginx -t
 
 exec "$@"
