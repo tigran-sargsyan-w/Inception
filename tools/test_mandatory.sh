@@ -650,22 +650,19 @@ WordPress table count is greater than zero"
   [ "$RC" -eq 0 ] && [[ "$OUT" == *"$(db_name)"* && "$OUT" == *"$(db_user)"* ]] && pass 'Application account has privileges on the WordPress database' || fail 'Application account privileges are missing or unexpected'
 
   header 'MariaDB runtime configuration'
-
+  
   capture_sh \
     'query bind_address and port' \
     'docker exec mariadb sh -c '\''
-      MYSQL_PWD="$(cat /run/secrets/db_root_password)" \
+      export MYSQL_PWD="$(cat /run/secrets/db_root_password)"
+  
       mariadb \
         --protocol=socket \
         --socket=/run/mysqld/mysqld.sock \
         --user=root \
         --batch \
         --skip-column-names \
-        --execute="
-          SELECT CONCAT('\''bind_address='\'', @@global.bind_address)
-          UNION ALL
-          SELECT CONCAT('\''port='\'', @@global.port);
-        "
+        --execute="SELECT @@global.bind_address, @@global.port;"
     '\'''
   
   expected 'bind_address=0.0.0.0
@@ -673,9 +670,7 @@ WordPress table count is greater than zero"
   
   if [ "$RC" -eq 0 ] \
     && printf '%s\n' "$OUT" \
-      | grep -Fxq 'bind_address=0.0.0.0' \
-    && printf '%s\n' "$OUT" \
-      | grep -Fxq 'port=3306'
+      | grep -Eq '^0\.0\.0\.0[[:space:]]+3306$'
   then
     pass 'MariaDB listens on the expected internal address and port'
   else
