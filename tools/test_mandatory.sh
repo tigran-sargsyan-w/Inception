@@ -1,5 +1,85 @@
 #!/usr/bin/env bash
 
+# ==============================================================================
+# Inception Mandatory Test Runner
+# ==============================================================================
+#
+# This script automates the technical validation of the mandatory part of the
+# Inception project. Each test prints the executed command, its real output as
+# evidence, the expected result, and a final [PASS], [FAIL], or [SKIP] status.
+#
+# Available modes:
+#
+#   list
+#       Shows all available test modes with a short description.
+#
+#   preflight
+#       Checks required tools, the Docker daemon, environment files, local
+#       secrets, file permissions, and the resolved Docker Compose structure.
+#
+#   runtime
+#       Checks that all containers are running, verifies their PID 1 processes
+#       and restart policies, validates NGINX and PHP-FPM, and tests HTTPS and
+#       published ports.
+#
+#   tls
+#       Checks the generated certificate and private key, verifies the domain
+#       name and matching key pair, accepts TLS 1.2/1.3, and rejects TLS 1.0/1.1.
+#
+#   wordpress
+#       Verifies that WordPress is installed, checks its URL, title, database
+#       configuration, administrator account, second user, and assigned roles.
+#
+#   mariadb
+#       Verifies the WordPress database, MariaDB accounts, TCP connectivity,
+#       application privileges, listening configuration, and initialization
+#       marker.
+#
+#   network
+#       Checks the project bridge network, container membership, Docker DNS,
+#       internal communication between services, and the shared WordPress volume.
+#
+#   persistence
+#       Creates temporary WordPress file and database records, removes and
+#       recreates the containers, verifies that both volumes preserved the data,
+#       and removes the temporary test data afterward.
+#
+#   restart
+#       Simulates a real crash of NGINX, WordPress, and MariaDB by killing each
+#       main process, then verifies automatic restart and service recovery.
+#
+#   security
+#       Audits Git status and history, ignored secret files, secret-value leaks,
+#       container environments, forbidden runtime hacks, latest image tags, and
+#       Dockerfile base images.
+#
+#   cold-start
+#       Performs a destructive reset, removes generated TLS files, rebuilds the
+#       project from an empty state, and validates initialization and runtime.
+#
+#   full
+#       Runs the complete automated mandatory acceptance suite:
+#       cold start, runtime, TLS, WordPress, MariaDB, network, persistence,
+#       restart behavior, security audit, and final health checks.
+#
+# Important:
+#
+#   The "cold-start" and "full" modes are destructive. They remove the current
+#   WordPress and MariaDB data and require explicit confirmation before running.
+#
+# Examples:
+#
+#   ./tools/test_mandatory.sh list
+#   ./tools/test_mandatory.sh runtime
+#   ./tools/test_mandatory.sh persistence
+#   ./tools/test_mandatory.sh full
+#
+# Every run stores the complete evidence output in:
+#
+#   logs/mandatory-test-YYYYMMDD-HHMMSS.log
+#
+# ==============================================================================
+
 set -u
 set -o pipefail
 
