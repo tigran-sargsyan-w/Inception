@@ -933,11 +933,31 @@ crash_one() {
       [ "$service_rc" -eq 0 ] && service_out="${service_out}${service_out:+$'\n'}WordPress core is installed"
       ;;
     mariadb)
-      sleep 8
-      service_out="$(docker exec mariadb sh -c '
-        MYSQL_PWD="$(cat /run/secrets/db_password)" \
-        mariadb --protocol=tcp --host=127.0.0.1 --port="$MARIADB_PORT" --user="$MYSQL_USER" --database="$MYSQL_DATABASE" --execute="SELECT 1 AS database_available;"
-      ' 2>&1)"; service_rc=$?
+      local probe=0
+      service_rc=1
+  
+      while [ "$probe" -lt 30 ]; do
+          service_out="$(docker exec mariadb sh -c '
+          MYSQL_PWD="$(cat /run/secrets/db_password)" \
+          mariadb \
+              --protocol=tcp \
+              --connect-timeout=2 \
+              --host=127.0.0.1 \
+              --port="$MARIADB_PORT" \
+              --user="$MYSQL_USER" \
+              --database="$MYSQL_DATABASE" \
+              --execute="SELECT 1 AS database_available;"
+          ' 2>&1)"
+  
+          service_rc=$?
+  
+          if [ "$service_rc" -eq 0 ]; then
+          break
+          fi
+  
+          sleep 1
+          probe=$((probe + 1))
+      done
       ;;
   esac
   evidence "host_pid=$pid
