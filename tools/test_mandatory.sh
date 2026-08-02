@@ -690,10 +690,40 @@ run_network() {
   capture_sh 'inspect inception_inception' 'docker network inspect inception_inception --format "driver={{.Driver}}
 {{range .Containers}}{{.Name}} -> {{.IPv4Address}}{{println}}{{end}}"'
   expected 'Bridge driver with mariadb, nginx, and wordpress attached'
-  local driver members
-  driver="$(docker network inspect inception_inception --format '{{.Driver}}' 2>/dev/null || true)"
-  members="$(docker network inspect inception_inception --format '{{range .Containers}}{{println .Name}}{{end}}' 2>/dev/null | sort || true)"
-  [ "$driver" = bridge ] && [ "$members" = $'mariadb\nnginx\nwordpress' ] && pass 'All mandatory containers share the project bridge network' || fail 'Docker network membership or driver is unexpected'
+  local driver members member_count
+  
+  driver="$(
+    docker network inspect inception_inception \
+      --format '{{.Driver}}' \
+      2>/dev/null \
+      || true
+  )"
+  
+  members="$(
+    docker network inspect inception_inception \
+      --format '{{range .Containers}}{{println .Name}}{{end}}' \
+      2>/dev/null \
+      | sed '/^[[:space:]]*$/d' \
+      | sort -u
+  )"
+  
+  member_count="$(
+    printf '%s\n' "$members" \
+      | sed '/^[[:space:]]*$/d' \
+      | wc -l \
+      | tr -d '[:space:]'
+  )"
+  
+  if [ "$driver" = "bridge" ] \
+    && [ "$member_count" -eq 3 ] \
+    && grep -Fxq 'mariadb' <<<"$members" \
+    && grep -Fxq 'wordpress' <<<"$members" \
+    && grep -Fxq 'nginx' <<<"$members"
+  then
+    pass 'All mandatory containers share the project bridge network'
+  else
+    fail 'Docker network membership or driver is unexpected'
+  fi
 
   header 'Docker DNS'
   capture_sh 'resolve mariadb from WordPress and wordpress from NGINX' 'docker exec wordpress getent hosts mariadb; docker exec nginx getent hosts wordpress'
