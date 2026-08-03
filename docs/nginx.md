@@ -1,4 +1,3 @@
-
 ## What NGINX is
 
 NGINX is a web server and reverse proxy.
