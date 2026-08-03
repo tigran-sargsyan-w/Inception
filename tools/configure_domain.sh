@@ -200,13 +200,8 @@ main()
 	configure_domain "$DOMAIN_NAME"
 	configure_domain "$ADMINER_DOMAIN"
 
-	append_domain_mapping
-
-	print_success "Added local domain mapping:"
-	print_success "$DOMAIN_NAME -> $HOST_IP"
-
 	printf "\n"
-	print_success "Local domain was configured successfully."
+	print_success "Local domains were configured successfully."
 	printf "\n"
 
 	print_info "WordPress: https://$DOMAIN_NAME"
