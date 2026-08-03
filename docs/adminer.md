@@ -1,3 +1,68 @@
+## What Adminer is
+
+Adminer is a lightweight web application for managing relational databases.
+
+It is distributed as a single PHP file and provides a browser interface for:
+
+- viewing databases and tables;
+- running SQL queries;
+- inspecting rows and columns;
+- managing database objects;
+- checking users and privileges, depending on the connected account.
+
+## Role in this project
+
+Adminer provides a graphical interface for inspecting the MariaDB database
+used by WordPress.
+
+The request flow is:
+
+```text
+Browser
+→ HTTPS
+→ NGINX :443
+→ FastCGI
+→ Adminer PHP-FPM :9000
+→ MariaDB :3306
+```
+
+Adminer is stateless:
+
+- it has no persistent volume;
+- it does not store the WordPress database;
+- it does not publish a host port;
+- it does not receive database passwords through Docker secrets.
+
+The database credentials are entered manually in the Adminer login form.
+
+The MariaDB hostname must be:
+
+```text
+mariadb
+```
+
+and not:
+
+```text
+localhost
+127.0.0.1
+```
+
+because MariaDB runs in a separate container.
+
+## Important project properties
+
+```text
+Service name: adminer
+Internal port: 9000
+Published port: none
+Protocol used by NGINX: FastCGI
+Application file: /var/www/adminer/index.php
+Database host: mariadb
+Persistent volume: none
+Docker secrets: none
+```
+
 # Adminer Troubleshooting Cheat Sheet
 
 Use the checks in this order:
