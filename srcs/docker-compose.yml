@@ -51,6 +51,7 @@ services:
       - ./.env
     depends_on:
       - wordpress
+      - adminer
     ports:
       - "443:443"
     volumes:
@@ -65,6 +66,18 @@ services:
         source: ../certificates/inception.key
         target: /etc/nginx/ssl/inception.key
         read_only: true
+    networks:
+      - inception
+
+  adminer:
+    build:
+      context: ./requirements/adminer
+      dockerfile: Dockerfile
+    image: adminer:inception
+    container_name: adminer
+    restart: on-failure
+    depends_on:
+      - mariadb
     networks:
       - inception
 

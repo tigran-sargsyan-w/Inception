@@ -1,3 +1,53 @@
+## What NGINX is
+
+NGINX is a web server and reverse proxy.
+
+It accepts client connections, performs TLS termination, selects the correct
+virtual host, and forwards requests to the appropriate internal service.
+
+## Role in this project
+
+NGINX is the only externally accessible service.
+
+It publishes:
+
+```text
+443/tcp
+```
+
+It handles HTTPS requests for:
+
+```text
+tsargsya.42.fr
+adminer.tsargsya.42.fr
+```
+
+Requests are forwarded through FastCGI:
+
+```text
+tsargsya.42.fr
+→ wordpress:9000
+
+adminer.tsargsya.42.fr
+→ adminer:9000
+```
+
+NGINX does not execute PHP itself.
+
+PHP is executed by PHP-FPM inside the WordPress or Adminer container.
+
+## Important project properties
+
+```text
+Service name: nginx
+Internal port: 443
+Published port: 443
+TLS versions: TLS 1.2 and TLS 1.3
+WordPress upstream: wordpress:9000
+Adminer upstream: adminer:9000
+Persistent volume: none
+```
+
 # NGINX Troubleshooting Cheat Sheet
 
 Use the checks in this order:

@@ -28,3 +28,24 @@ server {
         fastcgi_param HTTPS on;
     }
 }
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name ${ADMINER_DOMAIN};
+
+    ssl_certificate /etc/nginx/ssl/inception.crt;
+    ssl_certificate_key /etc/nginx/ssl/inception.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        include fastcgi_params;
+
+        fastcgi_pass adminer:9000;
+
+        fastcgi_param SCRIPT_FILENAME /var/www/adminer/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_param HTTPS on;
+    }
+}

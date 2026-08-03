@@ -85,6 +85,13 @@ certificate_is_usable()
 		>/dev/null 2>&1 \
 		|| return 1
 
+	openssl x509 \
+		-in "$CERTIFICATE_FILE" \
+		-noout \
+		-checkhost "$ADMINER_DOMAIN" \
+		>/dev/null 2>&1 \
+		|| return 1
+
 	certificate_public_key="$(
 		openssl x509 \
 			-in "$CERTIFICATE_FILE" \
@@ -114,12 +121,29 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
+	ADMINER_DOMAIN="$(
+		sed -n \
+			's/^[[:space:]]*ADMINER_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+			"$ENV_FILE" \
+			| tail -n 1 \
+			| tr -d '\r'
+	)"
+
 	[ -n "$DOMAIN_NAME" ] \
 		|| fail "DOMAIN_NAME is not set in $ENV_FILE"
+
+	[ -n "$ADMINER_DOMAIN" ] \
+		|| fail "ADMINER_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
 			fail "DOMAIN_NAME contains invalid characters"
+			;;
+	esac
+
+	case "$ADMINER_DOMAIN" in
+		*[!A-Za-z0-9.-]*)
+			fail "ADMINER_DOMAIN contains invalid characters"
 			;;
 	esac
 }
@@ -139,7 +163,7 @@ generate_certificate()
 			-out "$CERTIFICATE_FILE" \
 			-subj \
 			"/C=FR/ST=Rhone/L=Lyon/O=42/OU=Inception/CN=$DOMAIN_NAME" \
-			-addext "subjectAltName=DNS:$DOMAIN_NAME" \
+			-addext "subjectAltName=DNS:$DOMAIN_NAME,DNS:*.$DOMAIN_NAME" \
 			2>&1
 	)"; then
 		rm -f "$CERTIFICATE_FILE" "$PRIVATE_KEY_FILE"

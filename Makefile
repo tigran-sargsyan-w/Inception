@@ -30,4 +30,10 @@ fclean:
 re: fclean
 	$(MAKE) all
 
-.PHONY: all prepare down clean fclean re
+rebuild:
+	$(COMPOSE) down
+	$(MAKE) prepare
+	$(COMPOSE) build --no-cache
+	$(COMPOSE) up -d
+
+.PHONY: all prepare down clean fclean re rebuild
