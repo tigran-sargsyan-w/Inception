@@ -1,3 +1,47 @@
+## What WordPress is
+
+WordPress is a content management system written in PHP.
+
+It generates the website, provides the administration interface, and stores
+its application data in MariaDB.
+
+## Role in this project
+
+The WordPress container contains:
+
+- WordPress PHP files;
+- PHP-FPM;
+- WP-CLI;
+- WordPress initialization logic.
+
+WordPress does not serve HTTP or HTTPS traffic directly.
+
+NGINX forwards PHP requests to WordPress through FastCGI:
+
+```text
+NGINX → wordpress:9000
+```
+
+WordPress connects to the database through:
+
+```text
+WordPress → mariadb:3306
+```
+
+Its files are persisted through the `wordpress_data` volume.
+
+## Important project properties
+
+```text
+Service name: wordpress
+Internal port: 9000
+Published port: none
+Protocol used by NGINX: FastCGI
+Persistent volume: wordpress_data
+Files path in container: /var/www/html
+Files path on VM: /home/tsargsya/data/wordpress
+```
+
 # WordPress Troubleshooting Cheat Sheet
 
 Use the checks in this order:
