@@ -75,12 +75,29 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
+	ADMINER_DOMAIN="$(
+		sed -n \
+			's/^[[:space:]]*ADMINER_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+			"$ENV_FILE" \
+			| tail -n 1 \
+			| tr -d '\r'
+	)"
+
 	[ -n "$DOMAIN_NAME" ] \
 		|| fail "DOMAIN_NAME is not set in $ENV_FILE"
+
+	[ -n "$ADMINER_DOMAIN" ] \
+		|| fail "ADMINER_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
 			fail "DOMAIN_NAME contains invalid characters"
+			;;
+	esac
+
+	case "$ADMINER_DOMAIN" in
+		*[!A-Za-z0-9.-]*)
+			fail "ADMINER_DOMAIN contains invalid characters"
 			;;
 	esac
 }
@@ -88,7 +105,9 @@ read_domain_name()
 
 get_domain_mappings()
 {
-	awk -v domain="$DOMAIN_NAME" '
+	domain="$1"
+
+	awk -v domain="$domain" '
 	{
 		line = $0
 
@@ -112,10 +131,12 @@ get_domain_mappings()
 
 append_domain_mapping()
 {
+	domain="$1"
+
 	if [ "$(id -u)" -eq 0 ]; then
 		printf '\n%s\t%s\t# Inception\n' \
 			"$HOST_IP" \
-			"$DOMAIN_NAME" \
+			"$domain" \
 			>> "$HOSTS_FILE"
 
 		return
@@ -126,10 +147,44 @@ append_domain_mapping()
 
 	printf '\n%s\t%s\t# Inception\n' \
 		"$HOST_IP" \
-		"$DOMAIN_NAME" \
+		"$domain" \
 		| sudo tee -a "$HOSTS_FILE" >/dev/null
 }
 
+configure_domain()
+{
+	domain="$1"
+
+	mapped_ips="$(get_domain_mappings "$domain")"
+
+	if [ -n "$mapped_ips" ]; then
+		conflicting_ip="$(
+			printf '%s\n' "$mapped_ips" \
+				| awk -v expected="$HOST_IP" \
+					'$0 != expected { print; exit }'
+		)"
+
+		if [ -z "$conflicting_ip" ]; then
+			print_info "🌐 $domain already points to $HOST_IP. Skipping."
+			return
+		fi
+
+		print_warning "Existing mappings were found for $domain:"
+
+		printf '%s\n' "$mapped_ips" \
+			| while IFS= read -r mapped_ip; do
+				print_warning "$domain -> $mapped_ip"
+			done
+
+		fail "$domain already points to another IP address"
+	fi
+
+	print_info "Adding $domain -> $HOST_IP to $HOSTS_FILE..."
+
+	append_domain_mapping "$domain"
+
+	print_success "$domain -> $HOST_IP"
+}
 
 main()
 {
@@ -142,39 +197,8 @@ main()
 	print_info "Preparing local domain configuration for the Inception project..."
 	printf "\n"
 
-	mapped_ips="$(get_domain_mappings)"
-
-	if [ -n "$mapped_ips" ]; then
-		conflicting_ip="$(
-			printf '%s\n' "$mapped_ips" \
-				| awk -v expected="$HOST_IP" \
-					'$0 != expected { print; exit }'
-		)"
-
-		if [ -z "$conflicting_ip" ]; then
-			print_info "🌐 $DOMAIN_NAME already points to $HOST_IP. Skipping."
-
-			printf "\n"
-			print_success "Existing local domain configuration is valid."
-			printf "\n"
-
-			exit 0
-		fi
-
-		print_warning "Existing mappings were found for $DOMAIN_NAME:"
-
-		printf '%s\n' "$mapped_ips" \
-			| while IFS= read -r mapped_ip; do
-				print_warning "$DOMAIN_NAME -> $mapped_ip"
-			done
-
-		printf "\n"
-
-		fail "$DOMAIN_NAME already points to another IP address"
-	fi
-
-	print_info "Adding $DOMAIN_NAME -> $HOST_IP to $HOSTS_FILE..."
-	printf "\n"
+	configure_domain "$DOMAIN_NAME"
+	configure_domain "$ADMINER_DOMAIN"
 
 	append_domain_mapping
 
@@ -185,7 +209,8 @@ main()
 	print_success "Local domain was configured successfully."
 	printf "\n"
 
-	print_info "Open the website at: https://$DOMAIN_NAME"
+	print_info "WordPress: https://$DOMAIN_NAME"
+	print_info "Adminer: https://$ADMINER_DOMAIN"
 	printf "\n"
 }
 
