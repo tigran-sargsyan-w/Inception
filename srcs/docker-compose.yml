@@ -68,6 +68,18 @@ services:
     networks:
       - inception
 
+  adminer:
+    build:
+      context: ./requirements/adminer
+      dockerfile: Dockerfile
+    image: adminer:inception
+    container_name: adminer
+    restart: on-failure
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
     name: mariadb_data
