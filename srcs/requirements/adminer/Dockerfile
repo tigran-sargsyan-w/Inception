@@ -18,9 +18,14 @@ RUN mkdir -p /run/php /var/www/adminer \
     && chown -R www-data:www-data /var/www/adminer
 
 COPY conf/www.conf /etc/php/8.2/fpm/pool.d/www.conf
+COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 WORKDIR /var/www/adminer
 
 EXPOSE 9000
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["php-fpm8.2", "-F"]
