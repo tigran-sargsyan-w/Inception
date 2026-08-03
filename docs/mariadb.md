@@ -1,3 +1,47 @@
+## What MariaDB is
+
+MariaDB is a relational database management system.
+
+It stores structured data in databases and allows applications to create,
+read, update, and delete that data using SQL.
+
+## Role in this project
+
+MariaDB stores all persistent WordPress database data, including:
+
+- users;
+- posts and pages;
+- comments;
+- site settings;
+- plugin and theme configuration.
+
+WordPress connects to MariaDB through the internal Docker network using:
+
+```text
+mariadb:3306
+```
+
+Adminer also connects to MariaDB using the same internal service name:
+
+```text
+mariadb
+```
+
+MariaDB is not published directly on the VM.
+
+Its database files are persisted through the `mariadb_data` volume.
+
+## Important project properties
+
+```text
+Service name: mariadb
+Internal port: 3306
+Published port: none
+Persistent volume: mariadb_data
+Data path in container: /var/lib/mysql
+Data path on VM: /home/tsargsya/data/mariadb
+```
+
 # MariaDB Troubleshooting Cheat Sheet
 
 Use the checks in this order:
