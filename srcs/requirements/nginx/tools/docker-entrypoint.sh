@@ -26,12 +26,13 @@ require_file()
 }
 
 require_variable DOMAIN_NAME
+require_variable ADMINER_DOMAIN
 
 require_file "$TEMPLATE_FILE"
 require_file "$CERTIFICATE_FILE"
 require_file "$PRIVATE_KEY_FILE"
 
-envsubst '${DOMAIN_NAME}' \
+envsubst '${DOMAIN_NAME} ${ADMINER_DOMAIN}' \
 	< "$TEMPLATE_FILE" \
 	> "$CONFIG_FILE"
 
