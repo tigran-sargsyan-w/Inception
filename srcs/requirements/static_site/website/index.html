@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta
+		name="description"
+		content="Portfolio of Tigran Sargsyan, Unity developer and student at 42 Lyon."
+	>
+	<title>Tigran Sargsyan | Portfolio</title>
+	<link rel="stylesheet" href="style.css">
+	<script src="script.js" defer></script>
+</head>
+<body>
+	<header class="header">
+		<a class="logo" href="#home">TS</a>
+
+		<nav class="navigation" aria-label="Main navigation">
+			<a href="#about">About</a>
+			<a href="#skills">Skills</a>
+			<a href="#projects">Projects</a>
+		</nav>
+
+		<button id="theme-toggle" class="theme-toggle" type="button">
+			Theme
+		</button>
+	</header>
+
+	<main>
+		<section id="home" class="hero">
+			<p class="eyebrow">Unity developer · 42 Lyon student</p>
+
+			<h1>
+				Hello, I am
+				<span>Tigran Sargsyan</span>
+			</h1>
+
+			<p class="hero-text">
+				I build games, networked systems and software projects while
+				studying computer science at 42 Lyon.
+			</p>
+
+			<div class="hero-actions">
+				<a class="button primary" href="#projects">
+					View projects
+				</a>
+
+				<a
+					class="button secondary"
+					href="https://github.com/tigran-sargsyan-w"
+				>
+					GitHub
+				</a>
+			</div>
+		</section>
+
+		<section id="about" class="section">
+			<p class="section-label">About</p>
+
+			<h2>Developer focused on practical systems</h2>
+
+			<p>
+				I am a Unity developer based in Lyon and a student at 42 Lyon.
+				I enjoy building interactive applications and understanding
+				how software works below the application layer.
+			</p>
+		</section>
+
+		<section id="skills" class="section">
+			<p class="section-label">Skills</p>
+
+			<h2>Technologies I work with</h2>
+
+			<div class="cards">
+				<article class="card">
+					<h3>Game development</h3>
+					<p>Unity, C#, gameplay systems and multiplayer development.</p>
+				</article>
+
+				<article class="card">
+					<h3>Systems programming</h3>
+					<p>C, C++, Linux, networking and process management.</p>
+				</article>
+
+				<article class="card">
+					<h3>Infrastructure</h3>
+					<p>Docker, Docker Compose, NGINX, MariaDB and WordPress.</p>
+				</article>
+			</div>
+		</section>
+
+		<section id="projects" class="section">
+			<p class="section-label">Projects</p>
+
+			<h2>Selected work</h2>
+
+			<div class="cards">
+				<article class="card">
+					<h3>Inception</h3>
+					<p>
+						A Docker infrastructure containing NGINX, WordPress,
+						MariaDB and additional isolated services.
+					</p>
+				</article>
+
+				<article class="card">
+					<h3>Webserv</h3>
+					<p>
+						A configurable HTTP server implemented in C++ as a
+						team project at 42 Lyon.
+					</p>
+				</article>
+
+				<article class="card">
+					<h3>Jungle's Wrath</h3>
+					<p>
+						A multiplayer third-person shooter prototype built
+						with Unity and Mirror.
+					</p>
+				</article>
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<p>
+			© <span id="current-year"></span> Tigran Sargsyan
+		</p>
+	</footer>
+</body>
+</html>
