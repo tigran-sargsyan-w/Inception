@@ -92,6 +92,13 @@ certificate_is_usable()
 		>/dev/null 2>&1 \
 		|| return 1
 
+	openssl x509 \
+		-in "$CERTIFICATE_FILE" \
+		-noout \
+		-checkhost "$STATIC_SITE_DOMAIN" \
+		>/dev/null 2>&1 \
+		|| return 1
+
 	certificate_public_key="$(
 		openssl x509 \
 			-in "$CERTIFICATE_FILE" \
