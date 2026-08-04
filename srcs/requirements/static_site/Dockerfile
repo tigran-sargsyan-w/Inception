@@ -20,5 +20,4 @@ WORKDIR /var/www/static
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-
 CMD ["serve"]
