@@ -52,6 +52,7 @@ services:
     depends_on:
       - wordpress
       - adminer
+      - static_site
     ports:
       - "443:443"
     volumes:
@@ -78,6 +79,16 @@ services:
     restart: on-failure
     depends_on:
       - mariadb
+    networks:
+      - inception
+
+  static_site:
+    build:
+      context: ./requirements/static_site
+      dockerfile: Dockerfile
+    image: static_site:inception
+    container_name: static_site
+    restart: on-failure
     networks:
       - inception
 
