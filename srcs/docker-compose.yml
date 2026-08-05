@@ -35,6 +35,7 @@ services:
       - wp_user_password
     depends_on:
       - mariadb
+      - redis
     volumes:
       - wordpress_data:/var/www/html
     networks:
@@ -88,6 +89,16 @@ services:
       dockerfile: Dockerfile
     image: static_site:inception
     container_name: static_site
+    restart: on-failure
+    networks:
+      - inception
+
+  redis:
+    build:
+      context: ./requirements/redis
+      dockerfile: Dockerfile
+    image: redis:inception
+    container_name: redis
     restart: on-failure
     networks:
       - inception

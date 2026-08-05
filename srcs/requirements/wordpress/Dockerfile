@@ -16,6 +16,8 @@ RUN apt-get update \
         php-mysql \
         php-xml \
         php-zip \
+        php-redis \
+        redis-tools \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL \
