@@ -7,6 +7,7 @@ WORDPRESS_DIR="/var/www/html"
 DB_PASSWORD_FILE="/run/secrets/db_password"
 ADMIN_PASSWORD_FILE="/run/secrets/wp_admin_password"
 USER_PASSWORD_FILE="/run/secrets/wp_user_password"
+REDIS_PASSWORD_FILE="/run/secrets/redis_password"
 
 fail()
 {
@@ -57,6 +58,29 @@ wait_for_mariadb()
 	echo "MariaDB is ready."
 }
 
+wait_for_redis()
+{
+	attempt=0
+
+	echo "Waiting for Redis..."
+
+	until REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli \
+		--host="$REDIS_HOST" \
+		--port="$REDIS_PORT" \
+		ping 2>/dev/null | grep -q "^PONG$"
+	do
+		attempt=$((attempt + 1))
+
+		if [ "$attempt" -ge 30 ]; then
+			fail "Redis did not become ready"
+		fi
+
+		sleep 1
+	done
+
+	echo "Redis is ready."
+}
+
 download_wordpress()
 {
 	if [ ! -f "$WORDPRESS_DIR/wp-load.php" ]; then
@@ -85,6 +109,30 @@ create_wordpress_config()
 	fi
 }
 
+configure_redis()
+{
+	echo "Configuring WordPress Redis connection..."
+
+	run_wp config set \
+		WP_REDIS_HOST \
+		"$REDIS_HOST" \
+		--type=constant
+
+	run_wp config set \
+		WP_REDIS_PORT \
+		"$REDIS_PORT" \
+		--type=constant \
+		--raw
+
+	run_wp config set \
+		WP_REDIS_PASSWORD \
+		"trim(file_get_contents('$REDIS_PASSWORD_FILE'))" \
+		--type=constant \
+		--raw
+
+	echo "WordPress Redis connection configured."
+}
+
 install_wordpress()
 {
 	if ! run_wp core is-installed >/dev/null 2>&1; then
@@ -102,6 +150,30 @@ install_wordpress()
 	else
 		echo "WordPress is already installed."
 	fi
+}
+
+install_redis_plugin()
+{
+	if ! run_wp plugin is-installed redis-cache; then
+		echo "Installing Redis Object Cache plugin..."
+
+		run_wp plugin install redis-cache --activate
+
+		echo "Redis Object Cache plugin installed."
+	else
+		run_wp plugin activate redis-cache >/dev/null 2>&1 || true
+
+		echo "Redis Object Cache plugin already exists."
+	fi
+}
+
+enable_redis_cache()
+{
+	echo "Enabling Redis object cache..."
+
+	run_wp redis enable
+
+	echo "Redis object cache enabled."
 }
 
 create_second_user()
@@ -143,18 +215,23 @@ require_variable WP_ADMIN_USER
 require_variable WP_ADMIN_EMAIL
 require_variable WP_USER
 require_variable WP_USER_EMAIL
+require_variable REDIS_HOST
+require_variable REDIS_PORT
 
 require_file "$DB_PASSWORD_FILE"
 require_file "$ADMIN_PASSWORD_FILE"
 require_file "$USER_PASSWORD_FILE"
+require_file "$REDIS_PASSWORD_FILE"
 
 MYSQL_PASSWORD="$(tr -d '\r\n' < "$DB_PASSWORD_FILE")"
 WP_ADMIN_PASSWORD="$(tr -d '\r\n' < "$ADMIN_PASSWORD_FILE")"
 WP_USER_PASSWORD="$(tr -d '\r\n' < "$USER_PASSWORD_FILE")"
+REDIS_PASSWORD="$(tr -d '\r\n' < "$REDIS_PASSWORD_FILE")"
 
 [ -n "$MYSQL_PASSWORD" ] || fail "database password is empty"
 [ -n "$WP_ADMIN_PASSWORD" ] || fail "administrator password is empty"
 [ -n "$WP_USER_PASSWORD" ] || fail "second user password is empty"
+[ -n "$REDIS_PASSWORD" ] || fail "Redis password is empty"
 
 validate_admin_username
 
@@ -163,12 +240,17 @@ chown www-data:www-data "$WORDPRESS_DIR"
 
 download_wordpress
 wait_for_mariadb
+wait_for_redis
 create_wordpress_config
 install_wordpress
 create_second_user
+configure_redis
+install_redis_plugin
+enable_redis_cache
 
 unset MYSQL_PASSWORD
 unset WP_ADMIN_PASSWORD
 unset WP_USER_PASSWORD
+unset REDIS_PASSWORD
 
 exec "$@"
