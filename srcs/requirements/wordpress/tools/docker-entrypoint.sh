@@ -65,9 +65,9 @@ wait_for_redis()
 	echo "Waiting for Redis..."
 
 	until REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli \
-		--host="$REDIS_HOST" \
-		--port="$REDIS_PORT" \
-		ping 2>/dev/null | grep -q "^PONG$"
+		-h="$REDIS_HOST" \
+		-p="$REDIS_PORT" \
+		ping | grep -q "^PONG$"
 	do
 		attempt=$((attempt + 1))
 
