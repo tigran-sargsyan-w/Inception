@@ -33,7 +33,6 @@ services:
       - db_password
       - wp_admin_password
       - wp_user_password
-      - redis_password
     depends_on:
       - mariadb
       - redis
@@ -101,8 +100,6 @@ services:
     image: redis:inception
     container_name: redis
     restart: on-failure
-    secrets:
-      - redis_password
     networks:
       - inception
 
@@ -135,9 +132,6 @@ secrets:
 
   wp_user_password:
     file: ../secrets/wp_user_password.txt
-
-  redis_password:
-    file: ../secrets/redis_password.txt
 
 networks:
   inception:
