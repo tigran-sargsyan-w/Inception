@@ -33,8 +33,10 @@ services:
       - db_password
       - wp_admin_password
       - wp_user_password
+      - redis_password
     depends_on:
       - mariadb
+      - redis
     volumes:
       - wordpress_data:/var/www/html
     networks:
