@@ -7,7 +7,6 @@ WORDPRESS_DIR="/var/www/html"
 DB_PASSWORD_FILE="/run/secrets/db_password"
 ADMIN_PASSWORD_FILE="/run/secrets/wp_admin_password"
 USER_PASSWORD_FILE="/run/secrets/wp_user_password"
-REDIS_PASSWORD_FILE="/run/secrets/redis_password"
 
 fail()
 {
@@ -64,10 +63,10 @@ wait_for_redis()
 
 	echo "Waiting for Redis..."
 
-	until REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli \
+	until redis-cli \
 		-h "$REDIS_HOST" \
 		-p "$REDIS_PORT" \
-		ping | grep -q "^PONG$"
+		ping 2>/dev/null | grep -q '^PONG$'
 	do
 		attempt=$((attempt + 1))
 
@@ -124,11 +123,9 @@ configure_redis()
 		--type=constant \
 		--raw
 
-	run_wp config set \
+	run_wp config delete \
 		WP_REDIS_PASSWORD \
-		"trim(file_get_contents('$REDIS_PASSWORD_FILE'))" \
-		--type=constant \
-		--raw
+		--type=constant >/dev/null 2>&1 || true
 
 	echo "WordPress Redis connection configured."
 }
@@ -221,17 +218,14 @@ require_variable REDIS_PORT
 require_file "$DB_PASSWORD_FILE"
 require_file "$ADMIN_PASSWORD_FILE"
 require_file "$USER_PASSWORD_FILE"
-require_file "$REDIS_PASSWORD_FILE"
 
 MYSQL_PASSWORD="$(tr -d '\r\n' < "$DB_PASSWORD_FILE")"
 WP_ADMIN_PASSWORD="$(tr -d '\r\n' < "$ADMIN_PASSWORD_FILE")"
 WP_USER_PASSWORD="$(tr -d '\r\n' < "$USER_PASSWORD_FILE")"
-REDIS_PASSWORD="$(tr -d '\r\n' < "$REDIS_PASSWORD_FILE")"
 
 [ -n "$MYSQL_PASSWORD" ] || fail "database password is empty"
 [ -n "$WP_ADMIN_PASSWORD" ] || fail "administrator password is empty"
 [ -n "$WP_USER_PASSWORD" ] || fail "second user password is empty"
-[ -n "$REDIS_PASSWORD" ] || fail "Redis password is empty"
 
 validate_admin_username
 
@@ -251,6 +245,5 @@ enable_redis_cache
 unset MYSQL_PASSWORD
 unset WP_ADMIN_PASSWORD
 unset WP_USER_PASSWORD
-unset REDIS_PASSWORD
 
 exec "$@"
