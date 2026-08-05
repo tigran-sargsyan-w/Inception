@@ -6,6 +6,7 @@ RUN apt-get update \
         redis-tools \
     && rm -rf /var/lib/apt/lists/*
 
+COPY conf/redis.conf /etc/redis/redis.conf
 COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
