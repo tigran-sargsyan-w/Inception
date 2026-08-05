@@ -3,7 +3,8 @@
 set -eu
 
 REDIS_PASSWORD_FILE="/run/secrets/redis_password"
-REDIS_CONFIG_FILE="/run/redis/redis.conf"
+REDIS_CONFIG_SOURCE="/etc/redis/redis.conf"
+REDIS_CONFIG_RUNTIME="/run/redis/redis.conf"
 
 fail()
 {
@@ -14,6 +15,9 @@ fail()
 [ -r "$REDIS_PASSWORD_FILE" ] \
 	|| fail "cannot read Redis password secret"
 
+[ -r "$REDIS_CONFIG_SOURCE" ] \
+	|| fail "cannot read Redis configuration"
+
 REDIS_PASSWORD="$(tr -d '\r\n' < "$REDIS_PASSWORD_FILE")"
 
 [ -n "$REDIS_PASSWORD" ] \
@@ -21,18 +25,12 @@ REDIS_PASSWORD="$(tr -d '\r\n' < "$REDIS_PASSWORD_FILE")"
 
 mkdir -p /run/redis
 
-cat > "$REDIS_CONFIG_FILE" <<EOF
-bind 0.0.0.0
-protected-mode yes
-port 6379
-daemonize no
-supervised no
-save ""
-appendonly no
-requirepass "$REDIS_PASSWORD"
-EOF
+cp "$REDIS_CONFIG_SOURCE" "$REDIS_CONFIG_RUNTIME"
 
-chmod 600 "$REDIS_CONFIG_FILE"
+printf '\nrequirepass "%s"\n' \
+	"$REDIS_PASSWORD" >> "$REDIS_CONFIG_RUNTIME"
+
+chmod 600 "$REDIS_CONFIG_RUNTIME"
 
 unset REDIS_PASSWORD
 
