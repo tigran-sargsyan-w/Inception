@@ -92,6 +92,18 @@ services:
     networks:
       - inception
 
+  redis:
+    build:
+      context: ./requirements/redis
+      dockerfile: Dockerfile
+    image: redis:inception
+    container_name: redis
+    restart: on-failure
+    secrets:
+      - redis_password
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
     name: mariadb_data
@@ -121,6 +133,9 @@ secrets:
 
   wp_user_password:
     file: ../secrets/wp_user_password.txt
+
+  redis_password:
+    file: ../secrets/redis_password.txt
 
 networks:
   inception:
