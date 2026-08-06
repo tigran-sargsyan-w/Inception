@@ -26,6 +26,7 @@ SECRET_FILES = {
     "MariaDB user": SECRETS_DIRECTORY / "db_password.txt",
     "WordPress admin": SECRETS_DIRECTORY / "wp_admin_password.txt",
     "WordPress user": SECRETS_DIRECTORY / "wp_user_password.txt",
+    "FTP user": SECRETS_DIRECTORY / "ftp_password.txt",
 }
 
 
