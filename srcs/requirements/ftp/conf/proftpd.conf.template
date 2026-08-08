@@ -2,7 +2,7 @@ ServerName "Inception FTP"
 ServerType standalone
 DefaultServer on
 
-Port __FTP_PORT__
+Port ${FTP_PORT}
 UseIPv6 off
 
 User nobody
@@ -16,7 +16,7 @@ DefaultRoot ~
 AllowOverwrite on
 Umask 022 022
 
-PassivePorts __FTP_PASV_MIN_PORT__ __FTP_PASV_MAX_PORT__
-MasqueradeAddress __FTP_PASV_ADDRESS__
+PassivePorts ${FTP_PASV_MIN_PORT} ${FTP_PASV_MAX_PORT}
+MasqueradeAddress ${FTP_PASV_ADDRESS}
 
 UseReverseDNS off

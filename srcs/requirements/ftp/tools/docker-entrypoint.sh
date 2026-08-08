@@ -61,11 +61,9 @@ unset FTP_PASSWORD
 
 chown "$FTP_USER:$FTP_USER" "$FTP_ROOT"
 
-sed \
-    -e "s|__FTP_PORT__|$FTP_PORT|g" \
-    -e "s|__FTP_PASV_ADDRESS__|$FTP_PASV_ADDRESS|g" \
-    -e "s|__FTP_PASV_MIN_PORT__|$FTP_PASV_MIN_PORT|g" \
-    -e "s|__FTP_PASV_MAX_PORT__|$FTP_PASV_MAX_PORT|g" \
-    "$PROFTPD_TEMPLATE" > "$PROFTPD_CONFIG"
+envsubst \
+    '${FTP_PORT} ${FTP_PASV_ADDRESS} ${FTP_PASV_MIN_PORT} ${FTP_PASV_MAX_PORT}' \
+    < "$PROFTPD_TEMPLATE" \
+    > "$PROFTPD_CONFIG"
 
 exec "$@"
