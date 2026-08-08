@@ -103,6 +103,25 @@ services:
     networks:
       - inception
 
+  ftp:
+    build:
+      context: ./requirements/ftp
+      dockerfile: Dockerfile
+    image: ftp:inception
+    container_name: ftp
+    restart: on-failure
+    env_file:
+      - ./environment/ftp.env
+    secrets:
+      - ftp_password
+    ports:
+      - "21:21"
+      - "21000-21010:21000-21010"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
     name: mariadb_data
@@ -132,6 +151,9 @@ secrets:
 
   wp_user_password:
     file: ../secrets/wp_user_password.txt
+
+  ftp_password:
+    file: ../secrets/ftp_password.txt
 
 networks:
   inception:
