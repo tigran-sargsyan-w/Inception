@@ -1,6 +1,7 @@
 listen=YES
 listen_ipv6=NO
 background=NO
+seccomp_sandbox=NO
 
 anonymous_enable=NO
 local_enable=YES
