@@ -23,6 +23,9 @@ File listings, uploads and downloads use a separate data connection.
 This project uses passive FTP mode. The client opens both the control
 connection and the data connection to the server.
 
+FTP in this project is plain FTP, not FTPS. The bonus service is intended for
+the local Inception environment; FTP itself does not provide TLS encryption.
+
 ## Role in this project
 
 The FTP service provides authenticated read and write access to the same files
@@ -469,7 +472,7 @@ Check that no `${FTP_...}` placeholders remain:
 
 ```bash
 docker exec ftp sh -c '
-    if grep -q "${FTP_" /etc/proftpd/proftpd.conf 2>/dev/null; then
+    if grep -Fq "\${FTP_" /etc/proftpd/proftpd.conf; then
         echo "ERROR: unresolved FTP placeholder"
         exit 1
     fi
@@ -477,8 +480,11 @@ docker exec ftp sh -c '
 '
 ```
 
-If quoting makes that shell check inconvenient, simply inspect the generated
-file directly.
+Expected result:
+
+```text
+FTP placeholders: OK
+```
 
 ---
 
@@ -525,7 +531,7 @@ Meaning:
 
 ## 9. Check the main process and PID 1
 
-The FTP image intentionally does not install `procps` only for debugging.
+The FTP image intentionally does not install `procps` just for debugging.
 Use Docker to inspect the process table:
 
 ```bash
@@ -1295,8 +1301,8 @@ The current passive address is:
 127.0.0.1
 ```
 
-That address refers to the machine on which the client is running. A remote
-client normally needs the VM's reachable IP address instead.
+That address refers to the loopback interface from the client's point of view.
+A remote client normally needs the VM's reachable IP address instead.
 
 Update `FTP_PASV_ADDRESS` and ensure the published passive ports are reachable
 from the client.
