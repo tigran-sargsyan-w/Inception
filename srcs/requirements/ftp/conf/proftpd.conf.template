@@ -1,28 +1,23 @@
-listen=YES
-listen_ipv6=NO
-background=NO
-seccomp_sandbox=NO
+ServerName                      "Inception FTP"
+ServerType                      standalone
+DefaultServer                   on
 
-anonymous_enable=NO
-local_enable=YES
-write_enable=YES
-local_umask=022
+Port                            21
+UseIPv6                         off
 
-chroot_local_user=YES
-allow_writeable_chroot=YES
-local_root=/var/www/html
+User                            nobody
+Group                           nogroup
 
-pasv_enable=YES
-pasv_address=__FTP_PASV_ADDRESS__
-pasv_min_port=__FTP_PASV_MIN_PORT__
-pasv_max_port=__FTP_PASV_MAX_PORT__
+RequireValidShell               off
+UseFtpUsers                     off
+AuthOrder                       mod_auth_unix.c
 
-secure_chroot_dir=/var/run/vsftpd/empty
-pam_service_name=vsftpd
+DefaultRoot                     ~
+AllowOverwrite                  on
+Umask                           022 022
 
-userlist_enable=YES
-userlist_deny=NO
-userlist_file=/etc/vsftpd.userlist
+PassivePorts                    __FTP_PASV_MIN_PORT__ __FTP_PASV_MAX_PORT__
+MasqueradeAddress               __FTP_PASV_ADDRESS__
 
-xferlog_enable=YES
-force_dot_files=YES
+UseReverseDNS                   off
+IdentLookups                    off
