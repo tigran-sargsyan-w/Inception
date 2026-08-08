@@ -20,4 +20,3 @@ PassivePorts                    __FTP_PASV_MIN_PORT__ __FTP_PASV_MAX_PORT__
 MasqueradeAddress               __FTP_PASV_ADDRESS__
 
 UseReverseDNS                   off
-IdentLookups                    off
