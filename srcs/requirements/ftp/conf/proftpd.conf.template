@@ -1,0 +1,22 @@
+ServerName "Inception FTP"
+ServerType standalone
+DefaultServer on
+
+Port ${FTP_PORT}
+UseIPv6 off
+
+User nobody
+Group nogroup
+
+RequireValidShell off
+UseFtpUsers off
+AuthOrder mod_auth_unix.c
+
+DefaultRoot ~
+AllowOverwrite on
+Umask 022 022
+
+PassivePorts ${FTP_PASV_MIN_PORT} ${FTP_PASV_MAX_PORT}
+MasqueradeAddress ${FTP_PASV_ADDRESS}
+
+UseReverseDNS off
