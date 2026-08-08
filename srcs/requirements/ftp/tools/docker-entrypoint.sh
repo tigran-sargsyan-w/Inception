@@ -13,6 +13,11 @@ if [ -z "${FTP_USER:-}" ]; then
     exit 1
 fi
 
+if [ -z "${FTP_PORT:-}" ]; then
+    echo "Error: FTP_PORT is not set." >&2
+    exit 1
+fi
+
 if [ -z "${FTP_PASV_ADDRESS:-}" ]; then
     echo "Error: FTP_PASV_ADDRESS is not set." >&2
     exit 1
@@ -57,6 +62,7 @@ unset FTP_PASSWORD
 chown "$FTP_USER:$FTP_USER" "$FTP_ROOT"
 
 sed \
+    -e "s|__FTP_PORT__|$FTP_PORT|g" \
     -e "s|__FTP_PASV_ADDRESS__|$FTP_PASV_ADDRESS|g" \
     -e "s|__FTP_PASV_MIN_PORT__|$FTP_PASV_MIN_PORT|g" \
     -e "s|__FTP_PASV_MAX_PORT__|$FTP_PASV_MAX_PORT|g" \

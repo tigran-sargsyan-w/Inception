@@ -2,7 +2,7 @@ ServerName                      "Inception FTP"
 ServerType                      standalone
 DefaultServer                   on
 
-Port                            21
+Port                            __FTP_PORT__
 UseIPv6                         off
 
 User                            nobody
