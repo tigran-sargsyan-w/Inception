@@ -23,7 +23,11 @@ RUN python3 -m venv /opt/dockpeek-venv \
         -r requirements.txt
 
 ENV PATH="/opt/dockpeek-venv/bin:${PATH}"
+COPY tools/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8000
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "run:app"]
