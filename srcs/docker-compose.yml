@@ -54,6 +54,7 @@ services:
       - wordpress
       - adminer
       - static_site
+      - dockpeek
     ports:
       - "443:443"
     volumes:
