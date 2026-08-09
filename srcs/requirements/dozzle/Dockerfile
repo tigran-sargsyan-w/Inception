@@ -23,7 +23,8 @@ RUN curl -fsSL \
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CI=true
 
-RUN corepack enable
+RUN npm install -g --force corepack@0.34.7 \
+    && corepack enable
 
 WORKDIR /build
 
