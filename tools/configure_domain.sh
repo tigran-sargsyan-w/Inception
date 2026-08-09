@@ -91,9 +91,9 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
-	DOZZLE_DOMAIN="$(
+	DOCKPEEK_DOMAIN="$(
 		sed -n \
-			's/^[[:space:]]*DOZZLE_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+			's/^[[:space:]]*DOCKPEEK_DOMAIN[[:space:]]*=[[:space:]]*//p' \
 			"$ENV_FILE" \
 			| tail -n 1 \
 			| tr -d '\r'
@@ -108,8 +108,8 @@ read_domain_name()
 	[ -n "$STATIC_SITE_DOMAIN" ] \
 		|| fail "STATIC_SITE_DOMAIN is not set in $ENV_FILE"
 
-	[ -n "$DOZZLE_DOMAIN" ] \
-		|| fail "DOZZLE_DOMAIN is not set in $ENV_FILE"
+	[ -n "$DOCKPEEK_DOMAIN" ] \
+		|| fail "DOCKPEEK_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
@@ -129,9 +129,9 @@ read_domain_name()
 			;;
 	esac
 
-	case "$DOZZLE_DOMAIN" in
+	case "$DOCKPEEK_DOMAIN" in
 		*[!A-Za-z0-9.-]*)
-			fail "DOZZLE_DOMAIN contains invalid characters"
+			fail "DOCKPEEK_DOMAIN contains invalid characters"
 			;;
 	esac
 }
@@ -234,7 +234,7 @@ main()
 	configure_domain "$DOMAIN_NAME"
 	configure_domain "$ADMINER_DOMAIN"
 	configure_domain "$STATIC_SITE_DOMAIN"
-	configure_domain "$DOZZLE_DOMAIN"
+	configure_domain "$DOCKPEEK_DOMAIN"
 
 	printf "\n"
 	print_success "Local domains were configured successfully."
@@ -243,7 +243,7 @@ main()
 	print_info "WordPress: https://$DOMAIN_NAME"
 	print_info "Adminer: https://$ADMINER_DOMAIN"
 	print_info "Portfolio: https://$STATIC_SITE_DOMAIN"
-	print_info "Dozzle: https://$DOZZLE_DOMAIN"
+	print_info "Dockpeek: https://$DOCKPEEK_DOMAIN"
 	printf "\n"
 }
 

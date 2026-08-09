@@ -102,7 +102,7 @@ certificate_is_usable()
 	openssl x509 \
 		-in "$CERTIFICATE_FILE" \
 		-noout \
-		-checkhost "$DOZZLE_DOMAIN" \
+		-checkhost "$DOCKPEEK_DOMAIN" \
 		>/dev/null 2>&1 \
 		|| return 1
 
@@ -151,9 +151,9 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
-	DOZZLE_DOMAIN="$(
+	DOCKPEEK_DOMAIN="$(
 	sed -n \
-		's/^[[:space:]]*DOZZLE_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+		's/^[[:space:]]*DOCKPEEK_DOMAIN[[:space:]]*=[[:space:]]*//p' \
 		"$ENV_FILE" \
 		| tail -n 1 \
 		| tr -d '\r'
@@ -168,8 +168,8 @@ read_domain_name()
 	[ -n "$STATIC_SITE_DOMAIN" ] \
 		|| fail "STATIC_SITE_DOMAIN is not set in $ENV_FILE"
 
-	[ -n "$DOZZLE_DOMAIN" ] \
-		|| fail "DOZZLE_DOMAIN is not set in $ENV_FILE"
+	[ -n "$DOCKPEEK_DOMAIN" ] \
+		|| fail "DOCKPEEK_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
@@ -189,9 +189,9 @@ read_domain_name()
 			;;
 	esac
 
-	case "$DOZZLE_DOMAIN" in
+	case "$DOCKPEEK_DOMAIN" in
 		*[!A-Za-z0-9.-]*)
-			fail "DOZZLE_DOMAIN contains invalid characters"
+			fail "DOCKPEEK_DOMAIN contains invalid characters"
 			;;
 	esac
 }
