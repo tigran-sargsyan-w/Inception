@@ -122,6 +122,23 @@ services:
     networks:
       - inception
 
+  dockpeek:
+    build:
+      context: ./requirements/dockpeek
+      dockerfile: Dockerfile
+    image: dockpeek:inception
+    container_name: dockpeek
+    restart: on-failure
+    env_file:
+      - ./environment/dockpeek.env
+    secrets:
+      - dockpeek_password
+      - dockpeek_secret_key
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - inception
+
 volumes:
   mariadb_data:
     name: mariadb_data
@@ -154,6 +171,12 @@ secrets:
 
   ftp_password:
     file: ../secrets/ftp_password.txt
+
+  dockpeek_password:
+    file: ../secrets/dockpeek_password.txt
+
+  dockpeek_secret_key:
+    file: ../secrets/dockpeek_secret_key.txt
 
 networks:
   inception:
