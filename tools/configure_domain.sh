@@ -91,6 +91,14 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
+	DOCKPEEK_DOMAIN="$(
+		sed -n \
+			's/^[[:space:]]*DOCKPEEK_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+			"$ENV_FILE" \
+			| tail -n 1 \
+			| tr -d '\r'
+	)"
+
 	[ -n "$DOMAIN_NAME" ] \
 		|| fail "DOMAIN_NAME is not set in $ENV_FILE"
 
@@ -99,6 +107,9 @@ read_domain_name()
 
 	[ -n "$STATIC_SITE_DOMAIN" ] \
 		|| fail "STATIC_SITE_DOMAIN is not set in $ENV_FILE"
+
+	[ -n "$DOCKPEEK_DOMAIN" ] \
+		|| fail "DOCKPEEK_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
@@ -115,6 +126,12 @@ read_domain_name()
 	case "$STATIC_SITE_DOMAIN" in
 		*[!A-Za-z0-9.-]*)
 			fail "STATIC_SITE_DOMAIN contains invalid characters"
+			;;
+	esac
+
+	case "$DOCKPEEK_DOMAIN" in
+		*[!A-Za-z0-9.-]*)
+			fail "DOCKPEEK_DOMAIN contains invalid characters"
 			;;
 	esac
 }
@@ -217,6 +234,7 @@ main()
 	configure_domain "$DOMAIN_NAME"
 	configure_domain "$ADMINER_DOMAIN"
 	configure_domain "$STATIC_SITE_DOMAIN"
+	configure_domain "$DOCKPEEK_DOMAIN"
 
 	printf "\n"
 	print_success "Local domains were configured successfully."
@@ -225,6 +243,7 @@ main()
 	print_info "WordPress: https://$DOMAIN_NAME"
 	print_info "Adminer: https://$ADMINER_DOMAIN"
 	print_info "Portfolio: https://$STATIC_SITE_DOMAIN"
+	print_info "Dockpeek: https://$DOCKPEEK_DOMAIN"
 	printf "\n"
 }
 
