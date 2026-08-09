@@ -99,6 +99,13 @@ certificate_is_usable()
 		>/dev/null 2>&1 \
 		|| return 1
 
+	openssl x509 \
+		-in "$CERTIFICATE_FILE" \
+		-noout \
+		-checkhost "$DOZZLE_DOMAIN" \
+		>/dev/null 2>&1 \
+		|| return 1
+
 	certificate_public_key="$(
 		openssl x509 \
 			-in "$CERTIFICATE_FILE" \
@@ -144,6 +151,14 @@ read_domain_name()
 			| tr -d '\r'
 	)"
 
+	DOZZLE_DOMAIN="$(
+	sed -n \
+		's/^[[:space:]]*DOZZLE_DOMAIN[[:space:]]*=[[:space:]]*//p' \
+		"$ENV_FILE" \
+		| tail -n 1 \
+		| tr -d '\r'
+	)"
+
 	[ -n "$DOMAIN_NAME" ] \
 		|| fail "DOMAIN_NAME is not set in $ENV_FILE"
 
@@ -152,6 +167,9 @@ read_domain_name()
 
 	[ -n "$STATIC_SITE_DOMAIN" ] \
 		|| fail "STATIC_SITE_DOMAIN is not set in $ENV_FILE"
+
+	[ -n "$DOZZLE_DOMAIN" ] \
+		|| fail "DOZZLE_DOMAIN is not set in $ENV_FILE"
 
 	case "$DOMAIN_NAME" in
 		*[!A-Za-z0-9.-]*)
@@ -168,6 +186,12 @@ read_domain_name()
 	case "$STATIC_SITE_DOMAIN" in
 		*[!A-Za-z0-9.-]*)
 			fail "STATIC_SITE_DOMAIN contains invalid characters"
+			;;
+	esac
+
+	case "$DOZZLE_DOMAIN" in
+		*[!A-Za-z0-9.-]*)
+			fail "DOZZLE_DOMAIN contains invalid characters"
 			;;
 	esac
 }
