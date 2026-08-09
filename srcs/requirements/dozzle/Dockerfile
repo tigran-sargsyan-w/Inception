@@ -3,6 +3,7 @@ FROM debian:bookworm AS builder
 ARG DOZZLE_VERSION=v10.6.15
 ARG NODE_VERSION=25.9.0
 ARG GO_VERSION=1.26.0
+ARG COREPACK_VERSION=0.34.7
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -23,7 +24,7 @@ RUN curl -fsSL \
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CI=true
 
-RUN npm install -g --force corepack@0.34.7 \
+RUN npm install -g --force corepack@${COREPACK_VERSION} \
     && corepack enable
 
 WORKDIR /build
