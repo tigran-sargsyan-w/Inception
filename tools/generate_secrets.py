@@ -27,6 +27,8 @@ SECRET_FILES = {
     "WordPress admin": SECRETS_DIRECTORY / "wp_admin_password.txt",
     "WordPress user": SECRETS_DIRECTORY / "wp_user_password.txt",
     "FTP user": SECRETS_DIRECTORY / "ftp_password.txt",
+    "Dockpeek password": SECRETS_DIRECTORY / "dockpeek_password.txt",
+    "Dockpeek secret key": SECRETS_DIRECTORY / "dockpeek_secret_key.txt",
 }
 
 
