@@ -2,35 +2,66 @@
 
 ## Purpose
 
-This document explains how to prepare, build, run, inspect, and maintain the Inception project from a developer perspective.
+This document describes how to prepare, build, run, inspect, and maintain the complete Inception project from a developer perspective, including the bonus services.
 
-The stack is composed of three custom Docker images:
+The stack contains eight custom Docker images:
 
-- `mariadb:inception`;
-- `wordpress:inception`;
-- `nginx:inception`.
+```text
+mariadb:inception
+wordpress:inception
+nginx:inception
+adminer:inception
+static_site:inception
+redis:inception
+ftp:inception
+dockpeek:inception
+```
 
-Each image is built from `debian:bookworm`, and each service runs in its own container.
+Every service runs in its own container and is built from a project Dockerfile based on `debian:bookworm`.
 
 ## Architecture
 
 ```text
-Host / VM
+Host / Linux VM
 └── Docker bridge network: inception
     ├── nginx
     │   ├── publishes host port 443
-    │   ├── reads the WordPress volume read-only
-    │   └── forwards PHP requests to wordpress:9000
+    │   ├── mounts wordpress_data read-only
+    │   ├── forwards WordPress PHP requests to wordpress:9000
+    │   ├── proxies Adminer to adminer:9000
+    │   ├── proxies the static site to static_site:8080
+    │   └── proxies Dockpeek to dockpeek:8000
+    │
     ├── wordpress
-    │   ├── runs PHP-FPM on port 9000
+    │   ├── runs PHP-FPM on 9000
     │   ├── mounts wordpress_data at /var/www/html
-    │   └── connects to mariadb:3306
-    └── mariadb
-        ├── runs MariaDB on port 3306
-        └── mounts mariadb_data at /var/lib/mysql
+    │   ├── connects to mariadb:3306
+    │   └── uses redis:6379 for object caching
+    │
+    ├── mariadb
+    │   ├── runs MariaDB on 3306
+    │   └── mounts mariadb_data at /var/lib/mysql
+    │
+    ├── redis
+    │   └── runs Redis on 6379
+    │
+    ├── adminer
+    │   └── serves Adminer internally on 9000
+    │
+    ├── static_site
+    │   └── serves the portfolio internally on 8080
+    │
+    ├── ftp
+    │   ├── publishes host port 21
+    │   ├── publishes passive ports 21000-21010
+    │   └── mounts wordpress_data at /var/www/html
+    │
+    └── dockpeek
+        ├── serves internally on 8000
+        └── mounts /var/run/docker.sock read-only
 ```
 
-Only NGINX publishes a host port. WordPress and MariaDB use internal container ports on the project network.
+All services join the same private bridge network. Only NGINX and FTP publish host ports.
 
 ## Repository layout
 
@@ -41,14 +72,17 @@ Only NGINX publishes a host port. WordPress and MariaDB use internal container p
 ├── USER_DOC.md
 ├── DEV_DOC.md
 ├── certificates/
-│   └── .gitkeep
 ├── docs/
+│   ├── adminer.md
+│   ├── dockpeek.md
+│   ├── ftp.md
 │   ├── mandatory-testing.md
 │   ├── mariadb.md
 │   ├── nginx.md
+│   ├── redis.md
+│   ├── static_site.md
 │   └── wordpress.md
 ├── secrets/
-│   └── .gitkeep
 ├── tools/
 │   ├── configure_domain.sh
 │   ├── generate_certificates.sh
@@ -58,23 +92,21 @@ Only NGINX publishes a host port. WordPress and MariaDB use internal container p
     ├── docker-compose.yml
     ├── environment/
     │   ├── database.env
+    │   ├── dockpeek.env
+    │   ├── ftp.env
     │   └── wordpress.env
     └── requirements/
+        ├── adminer/
+        ├── dockpeek/
+        ├── ftp/
         ├── mariadb/
-        │   ├── Dockerfile
-        │   ├── conf/99-inception.cnf
-        │   └── tools/
-        │       ├── docker-entrypoint.sh
-        │       └── init.sql.template
         ├── nginx/
-        │   ├── Dockerfile
-        │   ├── conf/default.conf.template
-        │   └── tools/docker-entrypoint.sh
+        ├── redis/
+        ├── static_site/
         └── wordpress/
-            ├── Dockerfile
-            ├── conf/www.conf
-            └── tools/docker-entrypoint.sh
 ```
+
+Each service directory contains its Dockerfile and any configuration, application files, or entrypoint scripts required by that service.
 
 ## Prerequisites
 
@@ -103,25 +135,24 @@ docker info >/dev/null && echo 'Docker daemon: OK'
 
 ## Configuration files
 
-### Domain configuration
+### Local domains
 
-`srcs/.env` contains:
+`srcs/.env` contains the HTTPS virtual-host names:
 
 ```text
 DOMAIN_NAME=tsargsya.42.fr
+ADMINER_DOMAIN=adminer.tsargsya.42.fr
+STATIC_SITE_DOMAIN=portfolio.tsargsya.42.fr
+DOCKPEEK_DOMAIN=dockpeek.tsargsya.42.fr
 ```
 
-The root Makefile calls `tools/configure_domain.sh`. The script reads `DOMAIN_NAME` and ensures that `/etc/hosts` contains:
+`tools/configure_domain.sh` reads these values and ensures that each domain points to `127.0.0.1` in `/etc/hosts`.
 
-```text
-127.0.0.1    tsargsya.42.fr
-```
-
-It refuses to continue when the same domain already points to another address.
+The script refuses to continue if one of these names already maps to another IP address.
 
 ### Database configuration
 
-`srcs/environment/database.env` contains non-secret MariaDB settings:
+`srcs/environment/database.env` stores non-secret MariaDB settings such as:
 
 ```text
 MYSQL_DATABASE=wordpress
@@ -131,30 +162,48 @@ MARIADB_PORT=3306
 
 ### WordPress configuration
 
-`srcs/environment/wordpress.env` contains:
-
-```text
-MYSQL_HOST=mariadb
-WP_TITLE=Inception
-WP_ADMIN_USER=tsargsya
-WP_ADMIN_EMAIL=owner@tsargsya.42.fr
-WP_USER=writer
-WP_USER_EMAIL=writer@tsargsya.42.fr
-```
+`srcs/environment/wordpress.env` stores non-secret WordPress settings, including the MariaDB hostname, WordPress title, administrator account name, and second user.
 
 The administrator username must not contain `admin` in any letter case.
 
-Do not place passwords in tracked environment files.
+### FTP configuration
+
+`srcs/environment/ftp.env` contains:
+
+```text
+FTP_USER=ftpuser
+FTP_PORT=21
+FTP_PASV_ADDRESS=127.0.0.1
+FTP_PASV_MIN_PORT=21000
+FTP_PASV_MAX_PORT=21010
+```
+
+The FTP password is not stored in this file; it is provided through a Docker secret.
+
+### Dockpeek configuration
+
+`srcs/environment/dockpeek.env` contains:
+
+```text
+USERNAME=dockpeek
+TRUST_PROXY_HEADERS=true
+TRUSTED_PROXY_COUNT=1
+```
+
+The Dockpeek password and application secret key are supplied through Docker secrets.
 
 ## Secret setup
 
-The Compose file declares four secrets:
+The Compose file declares seven secrets:
 
 ```text
 db_root_password
 db_password
 wp_admin_password
 wp_user_password
+ftp_password
+dockpeek_password
+dockpeek_secret_key
 ```
 
 Their local source files are:
@@ -164,6 +213,9 @@ secrets/db_root_password.txt
 secrets/db_password.txt
 secrets/wp_admin_password.txt
 secrets/wp_user_password.txt
+secrets/ftp_password.txt
+secrets/dockpeek_password.txt
+secrets/dockpeek_secret_key.txt
 ```
 
 Generate them automatically:
@@ -178,61 +230,29 @@ Generate them interactively:
 python3 tools/generate_secrets.py --manual
 ```
 
-The script:
+The generator:
 
-- creates 32-character passwords by default;
+- creates 32-character secrets by default;
+- ensures generated passwords contain enabled uppercase, lowercase, digit, and special-character groups;
 - preserves existing non-empty files;
-- assigns mode `600` to newly created files;
-- never prints the generated values.
+- recreates empty secret files;
+- assigns mode `600` to new files;
+- never prints generated values.
 
-Verify the files without displaying their contents:
-
-```bash
-for file in \
-    secrets/db_root_password.txt \
-    secrets/db_password.txt \
-    secrets/wp_admin_password.txt \
-    secrets/wp_user_password.txt
-do
-    if [ -s "$file" ]; then
-        echo "OK: $file"
-    else
-        echo "MISSING OR EMPTY: $file"
-    fi
-done
-
-stat -c '%a %U:%G %n' secrets/*.txt
-```
-
-The source files are ignored by Git. Inside containers, Docker mounts each declared secret as a file under `/run/secrets/`.
+Inside containers, declared secrets are available as files under `/run/secrets/`.
 
 ## TLS setup
 
-`tools/generate_certificates.sh` creates:
+The project generates a self-signed certificate and private key under:
 
 ```text
 certificates/inception.crt
 certificates/inception.key
 ```
 
-The certificate is:
+NGINX mounts them read-only and accepts TLS 1.2 and TLS 1.3 only.
 
-- self-signed;
-- valid for 365 days;
-- generated with a 2048-bit RSA key;
-- issued for `tsargsya.42.fr`;
-- created with a `subjectAltName` entry for the domain.
-
-The script validates existing TLS files and reuses them when they are non-empty, unexpired, valid for the configured domain, and use a matching key pair.
-
-File permissions are:
-
-```text
-certificate: 644
-private key: 600
-```
-
-The files are mounted read-only into NGINX. The private key is ignored by Git.
+The same HTTPS endpoint is used for the WordPress, Adminer, static-site, and Dockpeek domains through separate NGINX `server` blocks.
 
 ## Build and launch
 
@@ -242,7 +262,7 @@ From the repository root:
 make
 ```
 
-The default `all` target depends on `prepare`, then executes:
+The default `all` target depends on `prepare` and then runs:
 
 ```bash
 docker compose -f srcs/docker-compose.yml up --build -d
@@ -252,8 +272,8 @@ The preparation stage:
 
 1. creates `/home/tsargsya/data/mariadb`;
 2. creates `/home/tsargsya/data/wordpress`;
-3. runs `tools/configure_domain.sh`;
-4. runs `tools/generate_certificates.sh`.
+3. configures all local project domains;
+4. generates or validates the TLS certificate.
 
 Validate Compose before starting:
 
@@ -261,7 +281,7 @@ Validate Compose before starting:
 docker compose -f srcs/docker-compose.yml config
 ```
 
-List the resolved resources:
+List resolved resources:
 
 ```bash
 docker compose -f srcs/docker-compose.yml config --services
@@ -276,14 +296,11 @@ Expected services:
 mariadb
 wordpress
 nginx
-```
-
-Expected images:
-
-```text
-mariadb:inception
-wordpress:inception
-nginx:inception
+adminer
+static_site
+redis
+ftp
+dockpeek
 ```
 
 Expected named volumes:
@@ -321,15 +338,13 @@ Equivalent to:
 docker compose -f srcs/docker-compose.yml down
 ```
 
-The containers and project network are removed. Host data under `/home/tsargsya/data` remains.
-
 ### Remove orphaned containers
 
 ```bash
 make clean
 ```
 
-Equivalent to a Compose shutdown with `--remove-orphans`. Persistent data remains.
+Equivalent to a Compose shutdown with `--remove-orphans`. Persistent host data remains.
 
 ### Full destructive cleanup
 
@@ -337,33 +352,29 @@ Equivalent to a Compose shutdown with `--remove-orphans`. Persistent data remain
 make fclean
 ```
 
-This executes:
-
-```bash
-docker compose -f srcs/docker-compose.yml down \
-    --rmi all \
-    --volumes \
-    --remove-orphans
-sudo rm -rf /home/tsargsya/data
-```
-
-It removes project containers, images, volume objects, network, and persistent WordPress and MariaDB data.
-
-It does not remove:
+This removes project containers, project images, Docker volume objects, the project network, and:
 
 ```text
-secrets/*.txt
-certificates/inception.crt
-certificates/inception.key
+/home/tsargsya/data
 ```
 
-### Full rebuild
+It does not remove the local secret files or generated TLS files.
+
+### Full clean rebuild
 
 ```bash
 make re
 ```
 
-Runs `fclean`, then `all`.
+Runs `fclean` and then `all`.
+
+### No-cache image rebuild without deleting persistent data
+
+```bash
+make rebuild
+```
+
+This runs a Compose shutdown, prepares the environment, rebuilds all images with `--no-cache`, and starts the containers again.
 
 ## Docker Compose management commands
 
@@ -379,33 +390,33 @@ Build without starting:
 docker compose -f srcs/docker-compose.yml build
 ```
 
-Rebuild one service:
+Build one service:
 
 ```bash
-docker compose -f srcs/docker-compose.yml build mariadb
-docker compose -f srcs/docker-compose.yml build wordpress
-docker compose -f srcs/docker-compose.yml build nginx
+docker compose -f srcs/docker-compose.yml build redis
+docker compose -f srcs/docker-compose.yml build ftp
+docker compose -f srcs/docker-compose.yml build adminer
+docker compose -f srcs/docker-compose.yml build static_site
+docker compose -f srcs/docker-compose.yml build dockpeek
 ```
 
-Recreate one service after rebuilding:
+Recreate one service:
 
 ```bash
-docker compose -f srcs/docker-compose.yml up -d --no-deps --build nginx
+docker compose -f srcs/docker-compose.yml up -d --no-deps --build SERVICE_NAME
 ```
 
 Show logs:
 
 ```bash
 docker compose -f srcs/docker-compose.yml logs --tail=100
-docker compose -f srcs/docker-compose.yml logs -f nginx
+docker compose -f srcs/docker-compose.yml logs -f SERVICE_NAME
 ```
 
-Open a shell in a running container:
+Open a shell:
 
 ```bash
-docker exec -it mariadb sh
-docker exec -it wordpress sh
-docker exec -it nginx sh
+docker exec -it SERVICE_NAME sh
 ```
 
 Run WP-CLI as the WordPress filesystem owner:
@@ -414,7 +425,7 @@ Run WP-CLI as the WordPress filesystem owner:
 docker exec -it -u www-data wordpress wp --path=/var/www/html --info
 ```
 
-Inspect Docker resources:
+Inspect resources:
 
 ```bash
 docker image ls
@@ -423,127 +434,159 @@ docker network ls
 docker inspect mariadb
 docker inspect wordpress
 docker inspect nginx
+docker inspect redis
+docker inspect ftp
+docker inspect adminer
+docker inspect static_site
+docker inspect dockpeek
 ```
 
-## Service implementation
+## Mandatory service implementation
 
 ### MariaDB
 
-The MariaDB image installs:
+MariaDB listens internally on `3306` and persists its data in `mariadb_data` at `/var/lib/mysql`.
 
-```text
-mariadb-server
-gettext-base
-```
+Its entrypoint separates MariaDB system-table initialization from project SQL initialization. A project marker is created only after the project-specific initialization succeeds, which makes interrupted cold starts recoverable.
 
-Its configuration listens on:
-
-```text
-0.0.0.0:3306
-```
-
-The entrypoint performs two independent checks:
-
-- `/var/lib/mysql/mysql` for MariaDB system tables;
-- `/var/lib/mysql/.inception_initialized` for completed project SQL initialization.
-
-When system tables are missing, it runs `mariadb-install-db`. When project initialization is missing, it:
-
-1. starts a temporary MariaDB server with networking disabled;
-2. waits until the local socket is available;
-3. renders `init.sql.template` with escaped values;
-4. creates or updates the database and application account;
-5. configures the root password;
-6. shuts down the temporary server;
-7. creates the initialization marker.
-
-The final process is started with:
-
-```sh
-exec "$@"
-```
-
-The Dockerfile command is:
-
-```text
-mariadbd --user=mysql
-```
-
-This makes the real MariaDB server PID 1.
+The real MariaDB server is started through `exec`, making it PID 1.
 
 ### WordPress and PHP-FPM
 
-The WordPress image installs PHP-FPM, required PHP extensions, MariaDB client tools, and WP-CLI.
+WordPress listens internally through PHP-FPM on `9000` and mounts `wordpress_data` at `/var/www/html`.
 
-PHP-FPM listens on:
+The image installs WP-CLI, the required PHP extensions, `php-redis`, and Redis tools.
 
-```text
-0.0.0.0:9000
-```
-
-The WordPress entrypoint:
-
-1. validates required variables and secret files;
-2. rejects an administrator username containing `admin`;
-3. downloads WordPress only when `wp-load.php` is missing;
-4. waits for MariaDB using an authenticated TCP query;
-5. creates `wp-config.php` only when missing;
-6. installs WordPress only when it is not already installed;
-7. creates the second user only when it does not exist;
-8. starts PHP-FPM through `exec`.
-
-The final command is:
-
-```text
-php-fpm8.2 -F
-```
+The entrypoint initializes WordPress only when necessary, waits for MariaDB, creates the expected users, configures WordPress, and finally starts PHP-FPM in the foreground.
 
 ### NGINX
 
-The NGINX image installs:
-
-```text
-nginx
-gettext-base
-```
-
-Its entrypoint:
-
-1. validates `DOMAIN_NAME`;
-2. checks the configuration template, certificate, and private key;
-3. renders the NGINX server configuration with `envsubst`;
-4. runs `nginx -t`;
-5. starts NGINX through `exec`.
+NGINX is the main HTTPS entrypoint on host port `443`.
 
 The generated configuration:
 
-- listens on port `443` for IPv4 and IPv6;
 - enables TLS 1.2 and TLS 1.3 only;
-- serves files from `/var/www/html`;
-- forwards PHP requests to `wordpress:9000`;
-- sets the FastCGI HTTPS parameter;
-- uses the mounted certificate and private key.
+- serves WordPress and forwards PHP requests to `wordpress:9000`;
+- reverse-proxies Adminer to `adminer:9000`;
+- reverse-proxies the static site to `static_site:8080`;
+- reverse-proxies Dockpeek to `dockpeek:8000`.
 
-The final command is:
+The main NGINX process runs in the foreground.
+
+## Bonus service implementation
+
+### Redis
+
+Redis runs in a dedicated container using:
 
 ```text
-nginx -g daemon off;
+redis-server /etc/redis/redis.conf
 ```
+
+It listens internally on port `6379` and is not published to the host.
+
+WordPress depends on the Redis service and includes both the PHP Redis extension and Redis command-line tools. The cache therefore remains isolated inside the Docker network.
+
+Quick check:
+
+```bash
+docker exec redis redis-cli ping
+```
+
+Expected:
+
+```text
+PONG
+```
+
+For deeper Redis checks, see `docs/redis.md`.
+
+### FTP
+
+The FTP service mounts:
+
+```text
+wordpress_data:/var/www/html
+```
+
+This means FTP operates on the same persistent files used by WordPress.
+
+Published ports are:
+
+```text
+21:21
+21000-21010:21000-21010
+```
+
+The username and passive-mode configuration come from `srcs/environment/ftp.env`; the password comes from `secrets/ftp_password.txt` through Docker secrets.
+
+For detailed tests, see `docs/ftp.md`.
+
+### Static website
+
+The static website runs in its own container and listens internally on `8080`.
+
+NGINX exposes it through:
+
+```text
+https://portfolio.tsargsya.42.fr
+```
+
+No PHP is used for this service.
+
+For implementation and testing details, see `docs/static_site.md`.
+
+### Adminer
+
+Adminer runs in its own container and connects to MariaDB through the private Docker network.
+
+Its application port remains internal. NGINX exposes the interface through:
+
+```text
+https://adminer.tsargsya.42.fr
+```
+
+For detailed checks, see `docs/adminer.md`.
+
+### Dockpeek — service of choice
+
+Dockpeek is the additional service selected for the free-choice bonus requirement.
+
+It is useful in this project because it provides a web interface for observing Docker containers and logs, which directly complements the system-administration and container-orchestration goals of Inception.
+
+The image downloads Dockpeek version `v1.7.2`, installs its Python dependencies in a virtual environment, and starts the application with Gunicorn on internal port `8000`.
+
+Compose mounts:
+
+```text
+/var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+The filesystem mount is read-only, but the Docker socket itself represents privileged access to the Docker daemon. This service therefore must be treated as an administrative interface.
+
+Dockpeek is reverse-proxied by NGINX at:
+
+```text
+https://dockpeek.tsargsya.42.fr
+```
+
+Its username is configured in `srcs/environment/dockpeek.env`; its password and application secret key are supplied using Docker secrets.
+
+For implementation and testing details, see `docs/dockpeek.md`.
 
 ## Network and DNS
 
-All three services join the `inception` bridge network.
+All eight services join the `inception` bridge network.
 
-Test Docker DNS from NGINX:
+Useful DNS checks:
 
 ```bash
 docker exec nginx getent hosts wordpress
-```
-
-Test Docker DNS from WordPress:
-
-```bash
 docker exec wordpress getent hosts mariadb
+docker exec wordpress getent hosts redis
+docker exec nginx getent hosts adminer
+docker exec nginx getent hosts static_site
+docker exec nginx getent hosts dockpeek
 ```
 
 Inspect the network:
@@ -552,39 +595,46 @@ Inspect the network:
 docker network inspect inception_inception
 ```
 
-The exact Docker network object name includes the Compose project name and may be shown as `inception_inception`.
+The exact Docker network object name may include the Compose project name.
 
 Host networking, Compose `links`, and `--link` are not used.
 
 ## Ports
 
-Check published ports:
+Expected host-published ports:
+
+```text
+nginx   443/tcp
+ftp     21/tcp
+ftp     21000-21010/tcp
+```
+
+Internal-only service ports:
+
+```text
+mariadb      3306
+wordpress    9000
+redis        6379
+adminer      9000
+static_site  8080
+dockpeek     8000
+```
+
+Inspect published ports:
 
 ```bash
 docker compose -f srcs/docker-compose.yml ps
 ```
 
-Expected behavior:
-
-```text
-nginx       0.0.0.0:443->443/tcp
-wordpress   9000/tcp
-mariadb     3306/tcp
-```
-
-The WordPress and MariaDB entries are exposed only inside Docker and do not contain a host mapping.
-
-Check listening host ports:
+Inspect host listeners:
 
 ```bash
-sudo ss -lntp | grep -E ':(80|443|3306|9000)\b' || true
+sudo ss -lntp | grep -E ':(21|443|3306|6379|8000|8080|9000|2100[0-9]|21010)\b' || true
 ```
-
-Only host port `443` should belong to the stack.
 
 ## Volumes and persistence
 
-The Compose file declares Docker named volumes with explicit names:
+The Compose file declares two named volumes:
 
 ```text
 mariadb_data
@@ -594,7 +644,7 @@ wordpress_data
 They use the local driver with host-backed storage:
 
 ```text
-mariadb_data  -> /home/tsargsya/data/mariadb
+mariadb_data   -> /home/tsargsya/data/mariadb
 wordpress_data -> /home/tsargsya/data/wordpress
 ```
 
@@ -605,35 +655,34 @@ mariadb_data   -> /var/lib/mysql
 wordpress_data -> /var/www/html
 ```
 
-NGINX mounts `wordpress_data` read-only so that it can resolve static files and validate PHP script paths without modifying the website.
+NGINX mounts `wordpress_data` read-only. FTP mounts the same WordPress volume read-write.
 
-Inspect the volumes:
+Inspect volumes:
 
 ```bash
 docker volume inspect mariadb_data
 docker volume inspect wordpress_data
 ```
 
-Inspect host data without modifying it:
+Persistence should be tested with `make down`, not `make fclean`:
 
-```bash
-sudo find /home/tsargsya/data -maxdepth 2 -printf '%M %u:%g %p\n'
-```
-
-Persistence must be tested with `make down`, not `make fclean`:
-
-1. create a WordPress post or another identifiable record;
+1. create identifiable WordPress content;
 2. run `make down`;
 3. run `make`;
-4. verify that the site and record still exist;
-5. verify that initialization did not run again.
+4. verify that the content still exists.
 
 ## Process and restart checks
+
+All services use:
+
+```text
+restart: on-failure
+```
 
 Display PID 1 in each container:
 
 ```bash
-for container in mariadb wordpress nginx
+for container in mariadb wordpress nginx adminer static_site redis ftp dockpeek
 do
     echo "===== $container ====="
     docker exec "$container" sh -c \
@@ -641,18 +690,10 @@ do
 done
 ```
 
-Expected main processes:
-
-```text
-mariadbd --user=mysql
-php-fpm: master process
-nginx: master process nginx -g daemon off;
-```
-
 Check restart policy and restart counters:
 
 ```bash
-for container in mariadb wordpress nginx
+for container in mariadb wordpress nginx adminer static_site redis ftp dockpeek
 do
     docker inspect \
         --format '{{.Name}} policy={{.HostConfig.RestartPolicy.Name}} restart_count={{.RestartCount}} status={{.State.Status}}' \
@@ -660,167 +701,99 @@ do
 done
 ```
 
-All services should use `on-failure`.
+## HTTPS verification
 
-## HTTPS and TLS verification
-
-Check the website:
+Check the virtual hosts:
 
 ```bash
-curl -k -sS -o /dev/null \
-    -w 'HTTPS status=%{http_code}\n' \
-    https://tsargsya.42.fr/
+curl -k -sS -o /dev/null -w 'WordPress: %{http_code}\n' https://tsargsya.42.fr/
+curl -k -sS -o /dev/null -w 'Adminer: %{http_code}\n' https://adminer.tsargsya.42.fr/
+curl -k -sS -o /dev/null -w 'Portfolio: %{http_code}\n' https://portfolio.tsargsya.42.fr/
+curl -k -sS -o /dev/null -w 'Dockpeek: %{http_code}\n' https://dockpeek.tsargsya.42.fr/
 ```
 
-Check TLS 1.2:
+Check TLS 1.2 and TLS 1.3:
 
 ```bash
-openssl s_client \
-    -connect tsargsya.42.fr:443 \
-    -servername tsargsya.42.fr \
-    -tls1_2 </dev/null
-```
-
-Check TLS 1.3:
-
-```bash
-openssl s_client \
-    -connect tsargsya.42.fr:443 \
-    -servername tsargsya.42.fr \
-    -tls1_3 </dev/null
+openssl s_client -connect tsargsya.42.fr:443 -servername tsargsya.42.fr -tls1_2 </dev/null
+openssl s_client -connect tsargsya.42.fr:443 -servername tsargsya.42.fr -tls1_3 </dev/null
 ```
 
 TLS 1.0 and TLS 1.1 must be rejected.
 
-Inspect certificate identity:
+## Bonus verification checklist
+
+### Redis
 
 ```bash
-openssl x509 \
-    -in certificates/inception.crt \
-    -noout \
-    -subject \
-    -issuer \
-    -dates \
-    -ext subjectAltName
+docker exec redis redis-cli ping
 ```
 
-## Debugging workflow
+Then verify WordPress cache behavior using the procedure in `docs/redis.md`.
 
-Use the following order instead of changing multiple files at once:
-
-1. validate the resolved Compose configuration;
-2. inspect container state;
-3. inspect the affected service logs;
-4. inspect the generated configuration inside the container;
-5. test internal DNS and connectivity;
-6. verify mounted files and permissions;
-7. rebuild only the affected image;
-8. recreate only the affected service when possible.
-
-Basic commands:
+### FTP
 
 ```bash
-docker compose -f srcs/docker-compose.yml config
-docker compose -f srcs/docker-compose.yml ps -a
-docker compose -f srcs/docker-compose.yml logs --tail=150 SERVICE
-docker inspect SERVICE
+docker compose -f srcs/docker-compose.yml ps ftp
 ```
 
-Service-specific guides are available in:
+Verify authentication, passive-mode connectivity, and read/write access to WordPress files using `docs/ftp.md`.
 
-```text
-docs/mariadb.md
-docs/wordpress.md
-docs/nginx.md
+### Adminer
+
+```bash
+curl -k -I https://adminer.tsargsya.42.fr
 ```
 
-## Complete validation
+Verify a database login through the browser using the MariaDB application account.
 
-The complete mandatory-part test procedure is documented in:
+### Static site
+
+```bash
+curl -k -I https://portfolio.tsargsya.42.fr
+```
+
+Verify that it is served by its own container and does not rely on PHP.
+
+### Dockpeek
+
+```bash
+curl -k -I https://dockpeek.tsargsya.42.fr
+```
+
+Log in and verify that container/log information is visible. See `docs/dockpeek.md` for service-specific checks and security considerations.
+
+## Troubleshooting documentation
+
+Detailed guides are available in:
 
 ```text
 docs/mandatory-testing.md
+docs/mariadb.md
+docs/wordpress.md
+docs/nginx.md
+docs/redis.md
+docs/ftp.md
+docs/adminer.md
+docs/static_site.md
+docs/dockpeek.md
 ```
 
-It covers:
-
-- clean Git state;
-- required local tools;
-- environment and secret files;
-- cold cleanup and rebuild;
-- PID 1;
-- startup logs;
-- domain and generated files;
-- published ports;
-- TLS versions;
-- WordPress and MariaDB state;
-- Docker DNS;
-- persistence;
-- crash restart behavior;
-- Git and secret audit;
-- final HTTPS result.
-
-Run the guide from top to bottom before evaluation. Some sections are destructive, so read each warning before executing commands.
-
-## Git and security checks
-
-Confirm that secrets and private keys are ignored:
+Useful first commands:
 
 ```bash
-git check-ignore -v secrets/*.txt certificates/inception.key
-```
-
-Confirm that generated secret files are not tracked:
-
-```bash
-git ls-files secrets certificates
-```
-
-Only `.gitkeep` placeholders should be tracked from those directories.
-
-Search tracked files for suspicious password assignments without printing actual local secret values:
-
-```bash
-git grep -n -E '(PASSWORD|PASSWD|SECRET|PRIVATE_KEY)[[:space:]]*=' || true
-```
-
-Inspect the final state:
-
-```bash
-git status --short
-git log -1 --oneline
-```
-
-## Development workflow
-
-A safe iteration cycle is:
-
-```text
-Edit one service
--> validate configuration or shell syntax
--> rebuild that service
--> recreate that service
--> inspect logs
--> run focused tests
--> run persistence-safe integration tests
--> commit the working state
-```
-
-Useful syntax checks include:
-
-```bash
-sh -n tools/configure_domain.sh
-sh -n tools/generate_certificates.sh
-sh -n srcs/requirements/mariadb/tools/docker-entrypoint.sh
-sh -n srcs/requirements/wordpress/tools/docker-entrypoint.sh
-sh -n srcs/requirements/nginx/tools/docker-entrypoint.sh
-python3 -m py_compile tools/generate_secrets.py
-```
-
-After documentation or configuration changes, finish with:
-
-```bash
+docker compose -f srcs/docker-compose.yml ps -a
+docker compose -f srcs/docker-compose.yml logs --tail=100
 docker compose -f srcs/docker-compose.yml config
-git diff --check
-git status --short
 ```
+
+## Security notes
+
+- Never commit `secrets/*.txt`.
+- Never commit the private TLS key.
+- Keep passwords and secret keys out of Dockerfiles and tracked environment files.
+- Do not print secret values to logs or documentation.
+- Do not use the `latest` image tag.
+- Keep secret/private-key permissions restricted.
+- Do not expose MariaDB, PHP-FPM, Redis, Adminer, the static-site application port, or Dockpeek's application port directly to the host unless the project design explicitly requires it.
+- Treat access to Dockpeek as privileged infrastructure access because it communicates with the Docker daemon through the mounted Docker socket.
