@@ -22,7 +22,7 @@ require_file()
 	[ -r "$1" ] || fail "cannot read file: $1"
 }
 
-require_variable DOCKPEEK_USERNAME
+require_variable USERNAME
 
 require_file "$PASSWORD_FILE"
 require_file "$SECRET_KEY_FILE"
@@ -33,7 +33,6 @@ SECRET_KEY="$(tr -d '\r\n' < "$SECRET_KEY_FILE")"
 [ -n "$PASSWORD" ] || fail "password is empty"
 [ -n "$SECRET_KEY" ] || fail "secret key is empty"
 
-export USERNAME="$DOCKPEEK_USERNAME"
 export PASSWORD
 export SECRET_KEY
 
