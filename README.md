@@ -4,40 +4,60 @@
 
 ## Description
 
-Inception is a system-administration project built around Docker. It creates a small, reproducible web infrastructure inside a virtual machine by building custom Docker images and orchestrating them with Docker Compose.
+Inception is a system-administration project built around Docker. It creates a reproducible multi-service web infrastructure inside a Linux virtual machine. Every service runs in its own container, is built from a custom Dockerfile based on `debian:bookworm`, and is orchestrated with Docker Compose.
 
-The stack contains three independent services:
+The mandatory stack contains:
 
-- **NGINX** is the only public entrypoint. It accepts HTTPS connections on port `443` and allows TLS 1.2 and TLS 1.3 only.
-- **WordPress with PHP-FPM** serves the website and listens internally on port `9000`.
-- **MariaDB** stores the WordPress database and listens internally on port `3306`.
+- **NGINX** — the HTTPS reverse proxy and main public entrypoint on port `443`, with TLS 1.2 and TLS 1.3 only.
+- **WordPress + PHP-FPM** — the website application, listening internally on port `9000`.
+- **MariaDB** — the WordPress database, listening internally on port `3306`.
+- **Two named volumes** — one for MariaDB data and one for WordPress files.
+- **A private Docker bridge network** — used for service-to-service communication.
 
-The images are built from `debian:bookworm`. Ready-made NGINX, WordPress, and MariaDB service images are not used.
+The project also implements all requested bonus services:
+
+- **Redis** — object cache used by WordPress.
+- **FTP server** — provides FTP access to the WordPress volume.
+- **Static website** — a separate portfolio site, implemented without PHP.
+- **Adminer** — browser-based database administration.
+- **Dockpeek** — the service of choice, used to inspect Docker containers and logs through a web interface.
+
+Ready-made service images are not used for the project services. Each service is built from its own Dockerfile.
 
 ## Architecture
 
 ```text
-Browser
-   |
-   | HTTPS :443
-   v
-NGINX
-   |
-   | FastCGI :9000
-   v
-WordPress + PHP-FPM
-   |
-   | MariaDB protocol :3306
-   v
-MariaDB
+                                  HTTPS :443
+                                     |
+                                     v
+                                  +-------+
+                                  | NGINX |
+                                  +-------+
+                         _________/   |   \__________
+                        /             |              \
+                       v              v               v
+                WordPress:9000   Adminer:9000   Static site:8080
+                    |   \                              
+                    |    \ Redis:6379                  Dockpeek:8000
+                    v
+                MariaDB:3306
+
+Host-published bonus ports:
+FTP :21 and passive range :21000-21010
 ```
 
-All three containers are attached to the private `inception` bridge network. Docker DNS allows the services to reach one another by service name:
+All containers join the private `inception` Docker bridge network. Docker DNS allows services to reach each other by service name.
 
-- NGINX connects to `wordpress:9000`;
-- WordPress connects to `mariadb:3306`.
+NGINX serves four HTTPS virtual hosts:
 
-Only NGINX publishes a host port. MariaDB and PHP-FPM remain available only inside the Docker network.
+```text
+https://tsargsya.42.fr
+https://adminer.tsargsya.42.fr
+https://portfolio.tsargsya.42.fr
+https://dockpeek.tsargsya.42.fr
+```
+
+The FTP service is the only bonus service that publishes additional host ports directly, because the FTP protocol requires its control port and passive data-port range.
 
 ## Project structure
 
@@ -49,9 +69,14 @@ Only NGINX publishes a host port. MariaDB and PHP-FPM remain available only insi
 ├── DEV_DOC.md
 ├── certificates/
 ├── docs/
+│   ├── adminer.md
+│   ├── dockpeek.md
+│   ├── ftp.md
 │   ├── mandatory-testing.md
 │   ├── mariadb.md
 │   ├── nginx.md
+│   ├── redis.md
+│   ├── static_site.md
 │   └── wordpress.md
 ├── secrets/
 ├── tools/
@@ -63,96 +88,123 @@ Only NGINX publishes a host port. MariaDB and PHP-FPM remain available only insi
     ├── docker-compose.yml
     ├── environment/
     │   ├── database.env
+    │   ├── dockpeek.env
+    │   ├── ftp.env
     │   └── wordpress.env
     └── requirements/
+        ├── adminer/
+        ├── dockpeek/
+        ├── ftp/
         ├── mariadb/
         ├── nginx/
+        ├── redis/
+        ├── static_site/
         └── wordpress/
 ```
 
-Each service directory contains its own Dockerfile, configuration files, and entrypoint script.
+Each service directory contains its own Dockerfile and, where required, configuration and entrypoint files.
 
 ## Main design choices
 
-### Custom images
+### Custom images and PID 1
 
-Each service is built from its own Dockerfile. The real service process is launched in the foreground and becomes PID 1 through `exec`:
+Every service is built from a custom Dockerfile. Long-running services are started in the foreground and entrypoint scripts finish with `exec` so that the real application process becomes PID 1.
 
-- `mariadbd --user=mysql`;
-- `php-fpm8.2 -F`;
-- `nginx -g 'daemon off;'`.
-
-No `tail -f`, `sleep infinity`, `while true`, or similar process-keeping workaround is used.
+No `tail -f`, `sleep infinity`, `while true`, or similar container-keeping workaround is used.
 
 ### Persistent storage
 
 The project declares two Docker named volumes:
 
-- `mariadb_data` for `/var/lib/mysql`;
-- `wordpress_data` for `/var/www/html`.
+- `mariadb_data` mounted at `/var/lib/mysql`;
+- `wordpress_data` mounted at `/var/www/html`.
 
-The volumes use Docker's local volume driver and store their data on the host in:
+They use Docker's local volume driver and store their data on the host under:
 
 ```text
 /home/tsargsya/data/mariadb
 /home/tsargsya/data/wordpress
 ```
 
-The services mount named volumes, rather than direct host bind mounts, for WordPress and MariaDB persistence.
+The FTP container mounts `wordpress_data`, which lets the FTP user work with the same WordPress files used by the website.
 
 ### Secrets and configuration
 
-Non-confidential configuration is stored in environment files:
-
-- `srcs/.env`;
-- `srcs/environment/database.env`;
-- `srcs/environment/wordpress.env`.
-
-Confidential values are stored in local secret files under `secrets/` and mounted by Docker under `/run/secrets/` inside the required containers. Secret files and the private TLS key are excluded from Git.
-
-### TLS and local domain
-
-The project uses the local domain:
+Non-confidential configuration is stored in tracked environment files:
 
 ```text
-tsargsya.42.fr
+srcs/.env
+srcs/environment/database.env
+srcs/environment/wordpress.env
+srcs/environment/ftp.env
+srcs/environment/dockpeek.env
 ```
 
-`tools/configure_domain.sh` maps the domain to `127.0.0.1` in `/etc/hosts`. `tools/generate_certificates.sh` creates a self-signed certificate and private key for the domain. NGINX accepts TLS 1.2 and TLS 1.3 only.
+Confidential values are stored locally under `secrets/` and mounted by Docker as files under `/run/secrets/` only into services that need them.
+
+Current secret files are:
+
+```text
+secrets/db_root_password.txt
+secrets/db_password.txt
+secrets/wp_admin_password.txt
+secrets/wp_user_password.txt
+secrets/ftp_password.txt
+secrets/dockpeek_password.txt
+secrets/dockpeek_secret_key.txt
+```
+
+Secret files and the private TLS key are excluded from Git.
+
+### Redis cache
+
+Redis runs in a dedicated container on internal port `6379`. WordPress includes the PHP Redis extension and Redis tools and connects to the `redis` service through the Docker network. Redis is not published to the host.
+
+### HTTPS routing for bonus web services
+
+Adminer, the static website, and Dockpeek do not publish their application ports to the host. NGINX reverse-proxies them using separate local domains over the same HTTPS port `443`.
+
+This keeps NGINX as the HTTPS entrypoint while still exposing the bonus web interfaces cleanly.
+
+### Dockpeek as the service of choice
+
+Dockpeek was selected because it is directly useful for a Docker-focused system-administration project. It provides a web interface for inspecting containers and logs, making the state of the infrastructure easier to observe during development and evaluation.
+
+The Docker socket is mounted read-only into the Dockpeek container. Dockpeek itself is exposed internally on port `8000` and is reached through NGINX at `https://dockpeek.tsargsya.42.fr`.
 
 ## Technical comparisons
 
-### Virtual machines vs Docker
+### Virtual Machines vs Docker
 
-A virtual machine emulates a complete computer and runs its own operating-system kernel. It provides strong isolation but uses more memory, storage, and startup time.
+A virtual machine emulates a complete computer and runs its own operating-system kernel. It provides strong isolation but requires more memory, storage, and startup time.
 
-A Docker container isolates an application and its dependencies while sharing the host kernel. Containers are lighter and faster to create, but they are not virtual machines. In this project, the VM provides the required host environment, while Docker isolates the individual services inside that VM.
+A Docker container isolates an application and its dependencies while sharing the host kernel. Containers are lighter and faster to recreate. In this project, the VM provides the required host environment and Docker isolates the individual services inside that VM.
 
-### Secrets vs environment variables
+### Secrets vs Environment Variables
 
-Environment variables are convenient for ordinary configuration such as a domain name, database name, hostname, or port. They are easy to inspect through process and container metadata, so they should not be used for passwords in this project.
+Environment variables are appropriate for ordinary configuration such as domains, database names, usernames, ports, and service hostnames.
 
-Docker secrets expose confidential values as files under `/run/secrets/` only to the services that declare them. This reduces accidental disclosure through image layers and environment inspection. The local source files must still be protected and excluded from Git.
+Passwords and secret keys are more sensitive. This project stores them in local secret files and exposes them inside selected containers under `/run/secrets/`, rather than putting them in Dockerfiles or tracked environment files.
 
-### Docker network vs host network
+### Docker Network vs Host Network
 
-A Docker bridge network gives the project an isolated network namespace and built-in DNS based on service names. Only explicitly published ports become reachable from the host.
+A Docker bridge network gives the stack an isolated network and built-in DNS using service names. Only explicitly published ports are reachable from the host.
 
-Host networking removes this isolation and makes a container use the host network stack directly. It also makes port ownership and service separation less explicit. This project uses a dedicated bridge network; host networking, legacy links, and `--link` are not used.
+Host networking removes this isolation and makes services share the host network stack directly. This project uses a dedicated bridge network; host networking, Compose `links`, and `--link` are not used.
 
-### Docker volumes vs bind mounts
+### Docker Volumes vs Bind Mounts
 
-A Docker volume is managed through Docker and is referenced by a volume name. It has a lifecycle independent from an individual container and is suitable for persistent application data.
+A Docker volume is managed as a Docker resource and has a lifecycle independent from an individual container. It is suitable for persistent application data.
 
-A bind mount maps an arbitrary host path directly into a container. It gives precise host-path control but couples the container more tightly to the host filesystem layout and permissions.
+A bind mount maps a host path directly into a container and couples the container more closely to the host filesystem layout.
 
-The WordPress and MariaDB services use named volumes. The local volume driver places their data under `/home/tsargsya/data`, as required by the project. The generated TLS certificate and key are separate configuration artifacts and are mounted read-only into NGINX.
+The MariaDB and WordPress persistent stores are Docker named volumes. The local volume driver places their data under `/home/tsargsya/data`, as required by the project. Configuration artifacts such as the generated TLS certificate/key and the read-only Docker socket used by Dockpeek are separate mounts, not application-data volumes.
 
 ## Instructions
 
 ### Prerequisites
 
-Run the project inside a Linux virtual machine with the following tools installed:
+Run the project inside a Linux virtual machine with:
 
 - Docker Engine;
 - Docker Compose;
@@ -163,59 +215,27 @@ Run the project inside a Linux virtual machine with the following tools installe
 
 The Docker daemon must be running and the current user must be allowed to execute Docker commands.
 
-### Configuration
-
-The committed environment files contain the non-secret project configuration:
-
-```text
-srcs/.env
-srcs/environment/database.env
-srcs/environment/wordpress.env
-```
-
-The default values configure:
-
-```text
-DOMAIN_NAME=tsargsya.42.fr
-MYSQL_DATABASE=wordpress
-MYSQL_USER=wpuser
-MARIADB_PORT=3306
-MYSQL_HOST=mariadb
-WP_TITLE=Inception
-WP_ADMIN_USER=tsargsya
-WP_USER=writer
-```
-
-Do not add passwords to these files.
-
 ### Generate local secrets
 
-Create the required secret files before the first launch:
+Before the first launch, run:
 
 ```bash
 python3 tools/generate_secrets.py
 ```
 
-The script creates:
+The script creates all required MariaDB, WordPress, FTP, and Dockpeek secret files. Existing non-empty secret files are preserved.
 
-```text
-secrets/db_root_password.txt
-secrets/db_password.txt
-secrets/wp_admin_password.txt
-secrets/wp_user_password.txt
-```
-
-Existing non-empty secret files are preserved. To enter passwords manually instead of generating them automatically, run:
+For interactive password entry:
 
 ```bash
 python3 tools/generate_secrets.py --manual
 ```
 
-The generated files receive permission mode `600`.
+New secret files are created with permission mode `600`.
 
 ### Build and start
 
-From the repository root, run:
+From the repository root:
 
 ```bash
 make
@@ -223,42 +243,85 @@ make
 
 The default target:
 
-1. creates the host data directories;
-2. configures `tsargsya.42.fr` in `/etc/hosts`;
+1. creates the persistent-data directories;
+2. configures the local project domains in `/etc/hosts`;
 3. generates or validates the TLS certificate;
-4. builds the three custom images;
-5. creates the network and named volumes;
+4. builds the custom images;
+5. creates the Docker network and named volumes;
 6. starts the complete stack in detached mode.
 
-Check the containers:
+Check the stack:
 
 ```bash
 docker compose -f srcs/docker-compose.yml ps
 ```
 
-Open the website at:
+Expected services:
+
+```text
+mariadb
+wordpress
+nginx
+adminer
+static_site
+redis
+ftp
+dockpeek
+```
+
+### Access the services
+
+WordPress:
 
 ```text
 https://tsargsya.42.fr
 ```
 
-Open the WordPress administration panel at:
+WordPress administration:
 
 ```text
 https://tsargsya.42.fr/wp-admin
 ```
 
-The certificate is self-signed, so a browser may display a local certificate warning.
+Adminer:
+
+```text
+https://adminer.tsargsya.42.fr
+```
+
+Static portfolio:
+
+```text
+https://portfolio.tsargsya.42.fr
+```
+
+Dockpeek:
+
+```text
+https://dockpeek.tsargsya.42.fr
+```
+
+FTP:
+
+```text
+Host: 127.0.0.1
+Port: 21
+User: ftpuser
+Password: secrets/ftp_password.txt
+Passive ports: 21000-21010
+```
+
+The HTTPS certificate is self-signed, so a browser may display a local certificate warning.
 
 ### Stop and clean
 
-Stop and remove the containers while preserving persistent data:
+Stop containers while preserving persistent data:
 
 ```bash
 make down
 ```
 
-Remove containers and orphaned project containers while preserving the host data directories:
+Remove containers and orphaned project containers while preserving persistent host data:
 
 ```bash
 make clean
@@ -276,56 +339,50 @@ Rebuild everything from a clean data state:
 make re
 ```
 
-`make fclean` is destructive. It removes the WordPress website files and MariaDB database data. It does not remove local secret files or generated certificate files.
+Force a no-cache image rebuild without deleting persistent data first:
+
+```bash
+make rebuild
+```
+
+`make fclean` and therefore `make re` are destructive for the WordPress and MariaDB persistent data. They do not remove the local secret files or generated certificate files.
 
 ## Persistence and restart behavior
 
-All containers use `restart: on-failure`. Docker restarts a container when its main process exits with an error.
+All services use `restart: on-failure`.
 
-Persistent data survives `make down` and container recreation because it is stored outside the writable container layers. It does not survive `make fclean`, because that target intentionally removes `/home/tsargsya/data`.
-
-## MariaDB initialization recovery
-
-MariaDB has two separate initialization states:
-
-1. `/var/lib/mysql/mysql` indicates that MariaDB system tables exist.
-2. `/var/lib/mysql/.inception_initialized` indicates that the project-specific SQL initialization completed successfully.
-
-The checks are intentionally independent. A container can stop after `mariadb-install-db` creates the system tables but before the WordPress database, application user, privileges, and root password are fully configured. Checking only for the `mysql` directory would incorrectly treat that partially initialized volume as complete.
-
-When system tables are missing, the entrypoint creates them with `mariadb-install-db`. When the project marker is missing, it starts a temporary local MariaDB server and runs idempotent SQL initialization. The marker is created only after the SQL command completes and the temporary server shuts down successfully.
-
-This makes a failed cold start recoverable without immediately deleting the persistent volume or rebuilding the image.
+Persistent MariaDB and WordPress data survive `make down` and container recreation because the data is stored outside the writable container layers. It does not survive `make fclean`, which intentionally removes `/home/tsargsya/data`.
 
 ## Testing and troubleshooting
 
-The repository contains focused troubleshooting guides:
-
-- [MariaDB troubleshooting](docs/mariadb.md)
-- [WordPress troubleshooting](docs/wordpress.md)
-- [NGINX troubleshooting](docs/nginx.md)
-
-A complete mandatory-part acceptance procedure is available in:
+The repository contains focused guides for the mandatory and bonus services:
 
 - [Mandatory full test guide](docs/mandatory-testing.md)
+- [MariaDB](docs/mariadb.md)
+- [WordPress](docs/wordpress.md)
+- [NGINX](docs/nginx.md)
+- [Redis](docs/redis.md)
+- [FTP](docs/ftp.md)
+- [Adminer](docs/adminer.md)
+- [Static website](docs/static_site.md)
+- [Dockpeek](docs/dockpeek.md)
 
 Useful first checks are:
 
 ```bash
 docker compose -f srcs/docker-compose.yml ps -a
-docker compose -f srcs/docker-compose.yml logs --tail=100 mariadb
-docker compose -f srcs/docker-compose.yml logs --tail=100 wordpress
-docker compose -f srcs/docker-compose.yml logs --tail=100 nginx
+docker compose -f srcs/docker-compose.yml logs --tail=100
 ```
 
 ## Security notes
 
 - Never commit files from `secrets/`.
 - Never commit `certificates/inception.key`.
-- Never place passwords in a Dockerfile or tracked environment file.
+- Never place passwords or secret keys in Dockerfiles or tracked environment files.
 - Do not print secret values into logs, screenshots, or documentation.
 - Do not use the `latest` image tag.
-- Keep secret and private-key file permissions restricted.
+- Keep secret and private-key permissions restricted.
+- The Docker socket grants powerful access to the Docker daemon even when mounted read-only at the filesystem level; access to Dockpeek must therefore be treated as privileged infrastructure access.
 
 ## Resources
 
@@ -341,16 +398,19 @@ The following references were used while implementing and reviewing the project:
 - [PHP-FPM documentation](https://www.php.net/manual/en/install.fpm.php)
 - [WordPress developer documentation](https://developer.wordpress.org/)
 - [WP-CLI documentation](https://wp-cli.org/)
+- [Redis documentation](https://redis.io/docs/)
+- [Adminer](https://www.adminer.org/)
+- [Dockpeek](https://github.com/dockpeek/dockpeek)
 - [OpenSSL documentation](https://docs.openssl.org/)
 
 ### Use of AI
 
-AI was used as a learning and review assistant during the project. It helped to:
+AI was used as a learning and review assistant during both the mandatory and bonus parts of the project. It helped to:
 
-- explain Docker, networking, volumes, PID 1, NGINX, PHP-FPM, WordPress, and MariaDB concepts;
+- explain Docker, networking, volumes, PID 1, TLS, NGINX, PHP-FPM, WordPress, MariaDB, Redis, FTP, reverse proxies, and container-observability concepts;
 - discuss implementation alternatives before changes were made;
 - analyze logs and error messages during troubleshooting;
-- propose test cases for cold starts, persistence, restart behavior, TLS, networking, and secret handling;
-- review shell scripts, configuration files, and documentation for clarity and consistency.
+- propose tests for cold starts, persistence, restart behavior, TLS, networking, caching, FTP access, bonus web services, and secret handling;
+- review shell scripts, Dockerfiles, configuration files, and documentation for clarity and consistency.
 
-All generated suggestions were reviewed against the project requirements, tested in the virtual machine, and adjusted to match the final implementation. The project author remains responsible for the code, configuration, tests, and documentation.
+All suggestions were reviewed against the project requirements, tested in the virtual machine, and adjusted to match the final implementation. The project author remains responsible for the code, configuration, tests, and documentation.
