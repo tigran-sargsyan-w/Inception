@@ -225,7 +225,7 @@ Expected mode:
 If the files do not exist, generate them before continuing:
 
 ```bash
-python3 tools/generate_secrets.py
+python3 srcs/tools/generate_secrets.py
 ```
 
 Do not print secret contents into the terminal, logs, screenshots, or documentation.

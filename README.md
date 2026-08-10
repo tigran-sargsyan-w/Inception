@@ -80,9 +80,7 @@ The FTP service is the only bonus service that publishes additional host ports d
 │   └── wordpress.md
 ├── secrets/
 ├── tools/
-│   ├── configure_domain.sh
-│   ├── generate_certificates.sh
-│   └── generate_secrets.py
+│   └── test_mandatory.sh
 └── srcs/
     ├── .env
     ├── docker-compose.yml
@@ -91,6 +89,10 @@ The FTP service is the only bonus service that publishes additional host ports d
     │   ├── dockpeek.env
     │   ├── ftp.env
     │   └── wordpress.env
+    ├── tools/
+    │   ├── configure_domain.sh
+    │   ├── generate_certificates.sh
+    │   └── generate_secrets.py
     └── requirements/
         ├── adminer/
         ├── dockpeek/
@@ -220,7 +222,7 @@ The Docker daemon must be running and the current user must be allowed to execut
 Before the first launch, run:
 
 ```bash
-python3 tools/generate_secrets.py
+python3 srcs/tools/generate_secrets.py
 ```
 
 The script creates all required MariaDB, WordPress, FTP, and Dockpeek secret files. Existing non-empty secret files are preserved.
@@ -228,7 +230,7 @@ The script creates all required MariaDB, WordPress, FTP, and Dockpeek secret fil
 For interactive password entry:
 
 ```bash
-python3 tools/generate_secrets.py --manual
+python3 srcs/tools/generate_secrets.py --manual
 ```
 
 New secret files are created with permission mode `600`.

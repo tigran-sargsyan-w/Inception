@@ -873,7 +873,7 @@ srcs/.env
 The local mapping is managed by:
 
 ```text
-tools/configure_domain.sh
+srcs/tools/configure_domain.sh
 ```
 
 ---

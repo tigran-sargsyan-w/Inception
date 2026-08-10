@@ -84,9 +84,7 @@ All services join the same private bridge network. Only NGINX and FTP publish ho
 │   └── wordpress.md
 ├── secrets/
 ├── tools/
-│   ├── configure_domain.sh
-│   ├── generate_certificates.sh
-│   └── generate_secrets.py
+│   └── test_mandatory.sh
 └── srcs/
     ├── .env
     ├── docker-compose.yml
@@ -95,6 +93,10 @@ All services join the same private bridge network. Only NGINX and FTP publish ho
     │   ├── dockpeek.env
     │   ├── ftp.env
     │   └── wordpress.env
+    ├── tools/
+    │   ├── configure_domain.sh
+    │   ├── generate_certificates.sh
+    │   └── generate_secrets.py
     └── requirements/
         ├── adminer/
         ├── dockpeek/
@@ -146,7 +148,7 @@ STATIC_SITE_DOMAIN=portfolio.tsargsya.42.fr
 DOCKPEEK_DOMAIN=dockpeek.tsargsya.42.fr
 ```
 
-`tools/configure_domain.sh` reads these values and ensures that each domain points to `127.0.0.1` in `/etc/hosts`.
+`srcs/tools/configure_domain.sh` reads these values and ensures that each domain points to `127.0.0.1` in `/etc/hosts`.
 
 The script refuses to continue if one of these names already maps to another IP address.
 
@@ -221,13 +223,13 @@ secrets/dockpeek_secret_key.txt
 Generate them automatically:
 
 ```bash
-python3 tools/generate_secrets.py
+python3 srcs/tools/generate_secrets.py
 ```
 
 Generate them interactively:
 
 ```bash
-python3 tools/generate_secrets.py --manual
+python3 srcs/tools/generate_secrets.py --manual
 ```
 
 The generator:
