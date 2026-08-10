@@ -18,7 +18,7 @@ USE_SPECIAL_CHARACTERS = True
 
 SPECIAL_CHARACTERS = "!@#%+=_-"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SECRETS_DIRECTORY = PROJECT_ROOT / "secrets"
 
 SECRET_FILES = {
