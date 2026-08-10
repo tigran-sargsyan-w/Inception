@@ -5,8 +5,8 @@ DATA_DIR := /home/tsargsya/data
 MARIADB_DIR := $(DATA_DIR)/mariadb
 WORDPRESS_DIR := $(DATA_DIR)/wordpress
 
-DOMAIN_SCRIPT := ./src/tools/configure_domain.sh
-CERTIFICATE_SCRIPT := ./src/tools/generate_certificates.sh
+DOMAIN_SCRIPT := ./srcs/tools/configure_domain.sh
+CERTIFICATE_SCRIPT := ./srcs/tools/generate_certificates.sh
 
 all: prepare
 	$(COMPOSE) up --build -d
