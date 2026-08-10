@@ -43,7 +43,7 @@ Run commands from the repository root, where the `Makefile` is located.
 Generate all required secret files:
 
 ```bash
-python3 tools/generate_secrets.py
+python3 srcs/tools/generate_secrets.py
 ```
 
 This creates:
@@ -63,7 +63,7 @@ Existing non-empty files are preserved.
 To enter credentials interactively:
 
 ```bash
-python3 tools/generate_secrets.py --manual
+python3 srcs/tools/generate_secrets.py --manual
 ```
 
 Do not commit, display, or share these files. Newly created secret files use permission mode `600`.
