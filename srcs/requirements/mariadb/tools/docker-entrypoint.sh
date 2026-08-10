@@ -2,17 +2,13 @@
 set -eu
 
 DATA_DIR="/var/lib/mysql"
-SOCKET="/run/mysqld/mysqld.sock"
-PID_FILE="/run/mysqld/mariadbd.pid"
 INIT_MARKER="$DATA_DIR/.inception_initialized"
 SQL_TEMPLATE="/usr/local/share/mariadb/init.sql.template"
 
 ROOT_PASSWORD_FILE="/run/secrets/db_root_password"
 USER_PASSWORD_FILE="/run/secrets/db_password"
 
-temp_pid=""
 rendered_sql=""
-root_auth_mode=""
 
 fail()
 {
@@ -24,11 +20,6 @@ cleanup()
 {
 	if [ -n "$rendered_sql" ]; then
 		rm -f "$rendered_sql"
-	fi
-
-	if [ -n "$temp_pid" ] && kill -0 "$temp_pid" 2>/dev/null; then
-		kill "$temp_pid" 2>/dev/null || true
-		wait "$temp_pid" 2>/dev/null || true
 	fi
 }
 
@@ -53,53 +44,6 @@ sql_escape()
 {
 	printf '%s' "$1" \
 		| sed -e 's/\\/\\\\/g' -e "s/'/''/g"
-}
-
-try_root_connection()
-{
-	if mariadb \
-		--protocol=socket \
-		--socket="$SOCKET" \
-		--user=root \
-		--execute='SELECT 1' >/dev/null 2>&1
-	then
-		root_auth_mode="passwordless"
-		return 0
-	fi
-
-	if MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mariadb \
-		--protocol=socket \
-		--socket="$SOCKET" \
-		--user=root \
-		--execute='SELECT 1' >/dev/null 2>&1
-	then
-		root_auth_mode="password"
-		return 0
-	fi
-
-	return 1
-}
-
-wait_for_mariadb()
-{
-	attempt=0
-
-	until try_root_connection
-	do
-		if ! kill -0 "$temp_pid" 2>/dev/null; then
-			wait "$temp_pid" 2>/dev/null || true
-			temp_pid=""
-			fail "temporary MariaDB server stopped unexpectedly"
-		fi
-
-		attempt=$((attempt + 1))
-
-		if [ "$attempt" -ge 30 ]; then
-			fail "temporary MariaDB server did not become ready"
-		fi
-
-		sleep 1
-	done
 }
 
 render_initialization_sql()
@@ -128,6 +72,9 @@ render_initialization_sql()
 	unset MYSQL_ROOT_PASSWORD_SQL
 	unset MYSQL_PASSWORD_SQL
 	unset MARIADB_HOSTNAME_SQL
+
+	chown mysql:mysql "$rendered_sql"
+	chmod 600 "$rendered_sql"
 }
 
 initialize_system_tables()
@@ -143,44 +90,21 @@ initialize_system_tables()
 		--skip-test-db
 }
 
-start_temporary_server()
+run_initialization_server()
 {
 	mariadbd \
 		--user=mysql \
 		--datadir="$DATA_DIR" \
 		--skip-networking \
-		--socket="$SOCKET" \
-		--pid-file="$PID_FILE" &
-
-	temp_pid=$!
-}
-
-run_initialization_sql()
-{
-	if [ "$root_auth_mode" = "password" ]; then
-		MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mariadb \
-			--protocol=socket \
-			--socket="$SOCKET" \
-			--user=root < "$rendered_sql"
-	else
-		mariadb \
-			--protocol=socket \
-			--socket="$SOCKET" \
-			--user=root < "$rendered_sql"
-	fi
+		--init-file="$rendered_sql"
 }
 
 configure_inception_database()
 {
 	echo "Configuring the Inception database..."
 
-	start_temporary_server
-	wait_for_mariadb
 	render_initialization_sql
-	run_initialization_sql
-
-	wait "$temp_pid"
-	temp_pid=""
+	run_initialization_server
 
 	rm -f "$rendered_sql"
 	rendered_sql=""
