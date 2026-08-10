@@ -4,7 +4,7 @@ set -eu
 
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 ENV_FILE="$PROJECT_ROOT/srcs/.env"
 CERTIFICATES_DIRECTORY="$PROJECT_ROOT/certificates"

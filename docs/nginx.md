@@ -839,7 +839,7 @@ Expected result:
 The mapping is prepared by:
 
 ```text
-tools/configure_domain.sh
+srcs/tools/configure_domain.sh
 ```
 
 The script:
@@ -1466,7 +1466,7 @@ ls -l \
 Run the certificate preparation script:
 
 ```bash
-./tools/generate_certificates.sh
+./srcs/tools/generate_certificates.sh
 ```
 
 Then rebuild/recreate NGINX:
@@ -1676,8 +1676,8 @@ and:
 ```makefile
 prepare:
     mkdir -p ...
-    ./tools/configure_domain.sh
-    ./tools/generate_certificates.sh
+    ./srcs/tools/configure_domain.sh
+    ./srcs/tools/generate_certificates.sh
 ```
 
 If domain or certificate preparation fails, Compose should not start.
@@ -1741,7 +1741,7 @@ cannot read certificate or private key
 → check file permissions
 
 certificate/key mismatch
-→ run tools/generate_certificates.sh
+→ run srcs/tools/generate_certificates.sh
 → recreate NGINX
 
 host not found in upstream "wordpress"
@@ -1771,7 +1771,7 @@ localhost redirects to tsargsya.42.fr
 
 tsargsya.42.fr does not resolve
 → check /etc/hosts
-→ run tools/configure_domain.sh
+→ run srcs/tools/configure_domain.sh
 
 browser reports an untrusted certificate
 → expected for a self-signed certificate

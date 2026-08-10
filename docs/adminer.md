@@ -725,7 +725,7 @@ Expected result:
 The mapping is prepared by:
 
 ```text
-tools/configure_domain.sh
+srcs/tools/configure_domain.sh
 ```
 
 The source value is:
