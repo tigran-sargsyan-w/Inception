@@ -108,6 +108,23 @@ create_wordpress_config()
 	fi
 }
 
+synchronize_database_host()
+{
+	expected_db_host="$MYSQL_HOST:$MARIADB_PORT"
+	current_db_host="$(run_wp config get DB_HOST 2>/dev/null || true)"
+
+	if [ "$current_db_host" = "$expected_db_host" ]; then
+		echo "WordPress database host is already up to date."
+		return
+	fi
+
+	echo "Updating WordPress database host..."
+
+	run_wp config set DB_HOST "$expected_db_host"
+
+	echo "WordPress database host updated."
+}
+
 configure_redis()
 {
 	echo "Configuring WordPress Redis connection..."
@@ -236,6 +253,7 @@ download_wordpress
 wait_for_mariadb
 wait_for_redis
 create_wordpress_config
+synchronize_database_host
 install_wordpress
 create_second_user
 configure_redis
