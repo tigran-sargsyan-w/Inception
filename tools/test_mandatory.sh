@@ -852,9 +852,10 @@ show_sensitive_history() {
 }
 
 show_dockerfile_bases() {
-    find srcs/requirements \
-        -name Dockerfile \
-        -exec grep -H '^FROM ' {} +
+    grep -H '^FROM ' \
+        srcs/requirements/mariadb/Dockerfile \
+        srcs/requirements/wordpress/Dockerfile \
+        srcs/requirements/nginx/Dockerfile
 }
 
 show_cold_host_data() {
@@ -1025,24 +1026,30 @@ test_compose_architecture() {
     capture \
         'show resolved services, images, volumes, and networks' \
         show_compose_architecture
-    expected 'Services: mariadb, nginx, wordpress
-Images: mariadb:inception, nginx:inception, wordpress:inception
-Volumes: mariadb_data, wordpress_data
-Network: inception'
+    expected 'Mandatory services: mariadb, nginx, wordpress
+Mandatory images: mariadb:inception, nginx:inception, wordpress:inception
+Mandatory volumes: mariadb_data, wordpress_data
+Mandatory network: inception
+Additional bonus services are ignored by this check'
 
     services="$(compose config --services 2>/dev/null | sort || true)"
     images="$(compose config --images 2>/dev/null | sort || true)"
     volumes="$(compose config --volumes 2>/dev/null | sort || true)"
     networks="$(compose config --networks 2>/dev/null | sort || true)"
 
-    if [ "$services" = $'mariadb\nnginx\nwordpress' ] \
-        && [ "$images" = $'mariadb:inception\nnginx:inception\nwordpress:inception' ] \
-        && [ "$volumes" = $'mariadb_data\nwordpress_data' ] \
-        && [ "$networks" = inception ]
+    if grep -Fxq mariadb <<<"$services" \
+        && grep -Fxq nginx <<<"$services" \
+        && grep -Fxq wordpress <<<"$services" \
+        && grep -Fxq mariadb:inception <<<"$images" \
+        && grep -Fxq nginx:inception <<<"$images" \
+        && grep -Fxq wordpress:inception <<<"$images" \
+        && grep -Fxq mariadb_data <<<"$volumes" \
+        && grep -Fxq wordpress_data <<<"$volumes" \
+        && grep -Fxq inception <<<"$networks"
     then
         pass 'Compose declares the expected mandatory architecture'
     else
-        fail 'Resolved Compose architecture differs from the expected structure'
+        fail 'One or more mandatory Compose resources are missing'
     fi
 }
 
@@ -1571,7 +1578,7 @@ run_network() {
 
     header 'Docker network membership'
     capture 'inspect inception_inception' show_network_membership
-    expected 'Bridge driver with mariadb, nginx, and wordpress attached'
+    expected 'Bridge driver with mariadb, nginx, and wordpress attached; bonus containers may also be present'
 
     driver="$(
         docker network inspect inception_inception \
@@ -1596,14 +1603,14 @@ run_network() {
     )"
 
     if [ "$driver" = bridge ] \
-        && [ "$member_count" -eq 3 ] \
+        && [ "$member_count" -ge 3 ] \
         && grep -Fxq mariadb <<<"$members" \
         && grep -Fxq wordpress <<<"$members" \
         && grep -Fxq nginx <<<"$members"
     then
         pass 'All mandatory containers share the project bridge network'
     else
-        fail 'Docker network membership or driver is unexpected'
+        fail 'Mandatory Docker network membership or driver is unexpected'
     fi
 
     header 'Docker DNS'
@@ -2382,9 +2389,9 @@ run_security() {
 
     header 'Dockerfile base images'
     capture \
-        'find every Dockerfile and print FROM instructions' \
+        'print mandatory Dockerfile FROM instructions' \
         show_dockerfile_bases
-    expected 'Exactly three Dockerfiles, each using FROM debian:bookworm'
+    expected 'The three mandatory Dockerfiles each use FROM debian:bookworm; bonus Dockerfiles are ignored'
 
     dockerfile_lines="$(printf '%s\n' "$OUT" | sed '/^$/d')"
     dockerfile_count="$(printf '%s\n' "$dockerfile_lines" | wc -l)"
@@ -2395,9 +2402,9 @@ run_security() {
             | grep -v 'FROM debian:bookworm' \
             >/dev/null
     then
-        pass 'All custom images use the expected Debian base'
+        pass 'All mandatory custom images use the expected Debian base'
     else
-        fail 'Dockerfile base images are unexpected'
+        fail 'Mandatory Dockerfile base images are unexpected'
     fi
 
     test_compose_architecture
