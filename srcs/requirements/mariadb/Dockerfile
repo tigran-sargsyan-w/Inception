@@ -13,7 +13,5 @@ COPY tools/init.sql.template /usr/local/share/mariadb/init.sql.template
 
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 3306
-
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["mariadbd", "--user=mysql"]
