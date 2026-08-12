@@ -38,8 +38,9 @@ CYAN := \033[36m
 #                                  Build Rules                                 #
 # **************************************************************************** #
 
-all: prepare
+all:
 	@printf "$(BOLD)Inception build$(RESET)\n"
+	@$(MAKE) --no-print-directory prepare
 	@printf "$(YELLOW)[BUILD]$(RESET) Building and starting containers\n"
 	@$(COMPOSE) up --build -d
 	@printf "$(GREEN)[DONE]$(RESET) $(BOLD)$(NAME)$(RESET) is ready\n"
