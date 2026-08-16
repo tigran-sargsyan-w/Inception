@@ -1,9 +1,9 @@
 # Inception – A Multi-Service Docker Infrastructure 🐳🌐
 
-✅ **Status**: Completed
-🏫 **School**: 42 Lyon – Inception
-🏅 **Score**: 125/100
-🧰 **Stack**: Docker · Docker Compose · NGINX · WordPress · MariaDB · Redis
+✅ **Status**: Completed  
+🏫 **School**: 42 Lyon – Inception  
+🏅 **Score**: 125/100  
+🧰 **Stack**: Docker · Docker Compose · NGINX · WordPress · MariaDB · Redis · Adminer · FTP · DockPeek  
 🐧 **Base Image**: Debian Bookworm
 
 > *A complete multi-container web infrastructure built from custom Docker images, with HTTPS, persistent storage, caching, administration tools, FTP access, and container observability.*
